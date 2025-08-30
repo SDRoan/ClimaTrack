@@ -1,0 +1,15 @@
+# Python / build
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# macOS
+.DS_Store
+
+# App data
+data/
+
+# Streamlit secrets (NEVER commit)
+.streamlit/secrets.toml
