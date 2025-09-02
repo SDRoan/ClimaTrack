@@ -1,11 +1,3 @@
-# Climatrack — Streamlit app
-# ---------------------------------------------------------
-# Secrets needed in `.streamlit/secrets.toml`:
-# AIRNOW_API_KEY = "..."
-# NEWSAPI_KEY = "..."        # optional
-# GUARDIAN_API_KEY = "..."   # optional
-# ---------------------------------------------------------
-
 import streamlit as st
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import re
@@ -14,7 +6,7 @@ import matplotlib.pyplot as plt
 import requests
 import os
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, date
 from urllib.parse import quote_plus, urlparse
 import csv
 from typing import Optional, List, Dict, Tuple
@@ -23,15 +15,11 @@ from html import unescape, escape
 import xml.etree.ElementTree as ET
 from transformers import pipeline
 import torch
-import random
-
-# NEW
 import pandas as pd
 import plotly.express as px
 
-# Optional (for dynamic centroids). If missing, we’ll still show the map sans labels.
 try:
-    from shapely.geometry import shape as shapely_shape
+    from shapely.geometry import shape as shapely_shape  # noqa
 except Exception:
     shapely_shape = None
 
@@ -46,7 +34,23 @@ except Exception:
 # Config
 # ---------------------------------------------------------
 NEWS_TTL_SEC = 180  # cache TTL for news sources (3 minutes)
+DEBUG_AQI = False   
 
+# ---- Units helpers ----
+LBS_PER_KG = 2.20462262
+UNITS_DEFAULT = "Imperial (lbs CO₂)"  
+def kg_to_lbs(x: float) -> float:
+    return float(x) * LBS_PER_KG
+
+def convert_mass_value(value_kg: float, units_label: str = UNITS_DEFAULT) -> float:
+    return kg_to_lbs(value_kg)
+
+def unit_suffix(units_label: str = UNITS_DEFAULT) -> str:
+    return "lb CO₂"
+
+# ---------------------------------------------------------
+# Lightweight summarizer used in one helper (kept as-is)
+# ---------------------------------------------------------
 summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
 def detect_activities_with_ai(user_input):
     prompt = (
@@ -61,11 +65,7 @@ def detect_activities_with_ai(user_input):
         text = result[0]["summary_text"]
         return eval(text.strip())
     except:
-        return {
-            "transportation": 0.3,
-            "electricity usage": 0.3,
-            "meat consumption": 0.3
-        }
+        return {"transportation": 0.3, "electricity usage": 0.3, "meat consumption": 0.3}
 
 # ---------------------------------------------------------
 # Logging
@@ -82,6 +82,9 @@ st.set_page_config(
   layout="wide",
   initial_sidebar_state="collapsed"
 )
+
+if st.session_state.get("units") != UNITS_DEFAULT:
+    st.session_state["units"] = UNITS_DEFAULT
 
 # ---------------------------------------------------------
 # Styles
@@ -107,7 +110,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# Helper: themed notice boxes (instead of st.warning)
+# Helper: themed notice boxes
 # ---------------------------------------------------------
 def notice(message: str, level: str = "info"):
     colors = {"info": "#2E86C1","success": "#1E8449","warning": "#B9770E","error": "#922B21"}
@@ -285,31 +288,6 @@ def ai_summarize_findings(issue: str, posts: list):
       return ""
 
 # ---------------------------------------------------------
-# Environment Q&A (used by the bottom assistant)
-# ---------------------------------------------------------
-def ask_environment_ai(question: str) -> dict:
-  """Small guard + unified LLM call for the Env assistant."""
-  try:
-      q = (question or "").strip()[:1500]
-      if not q:
-          return {"allowed": False, "reply": "Please enter an environmental question."}
-      classification_prompt = (
-          f"Question: {q}\n"
-          "Is this about environment, climate change, sustainability, energy, air/water, ecology, or related? "
-          "Answer ONLY YES or NO."
-      )
-      is_env = "YES" in llm_complete(classification_prompt, max_new_tokens=6, temp=0.0).upper()
-      if not is_env:
-          return {"allowed": False, "reply": "I can only answer environment/climate related questions here."}
-      answer_prompt = f"Question: {q}\nProvide a clear, practical answer in 4–7 sentences for a general audience."
-      answer = llm_complete(answer_prompt, max_new_tokens=320, temp=0.4).strip()
-      if not answer or len(answer) < 10:
-          return {"allowed": True, "reply": "I need a little more detail to give a useful answer."}
-      return {"allowed": True, "reply": answer}
-  except Exception as e:
-      return {"allowed": False, "reply": f"Something went wrong: {e}"}
-
-# ---------------------------------------------------------
 # Region-aware optimizer helpers
 # ---------------------------------------------------------
 def _read_csv_map(path: str, key_col: str, val_col: str) -> dict:
@@ -374,14 +352,8 @@ def compute_scenario(grid_kg_per_kwh: float, kwh_per_day: float, commute_miles: 
   total = elec_kg + trans_kg + food_kg
   return {"electricity": elec_kg, "transport": trans_kg, "food": food_kg, "total": total}
 
-def convert_mass_value(value_kg: float, units_label: str) -> float:
-  return value_kg * 2.20462262 if units_label.startswith("Imperial") else value_kg
-
-def unit_suffix(units_label: str) -> str:
-  return "lb CO₂" if units_label.startswith("Imperial") else "kg CO₂"
-
 # ---------------------------------------------------------
-# News utilities: cleaning & aggregation
+# News utilities (unchanged logic)
 # ---------------------------------------------------------
 def _time_window_to_timespan(window: str) -> str:
   return {"24h": "1d", "7d": "7d", "30d": "30d"}.get(window, "7d")
@@ -414,7 +386,7 @@ def _strip_html(text: str) -> str:
   text = unescape(text)
   text = re.sub(r"<script.*?>.*?</script>", "", text, flags=re.S | re.I)
   text = re.sub(r"<style.*?>.*?</style>", "", text, flags=re.S | re.I)
-  text = re.sub(r"<[^>]+>", "", text)  # remove all tags
+  text = re.sub(r"<[^>]+>", "", text)  
   text = re.sub(r"\s+", " ", text).strip()
   return text
 
@@ -612,7 +584,7 @@ def render_news_card(item: Dict):
   )
 
 # ---------------------------------------------------------
-# AirNow PM2.5 → State AQI map (NEW)
+# AQI conversion breakpoints (EPA PM2.5) + state mapping
 # ---------------------------------------------------------
 AQI_BREAKPOINTS_PM25 = [
     (0.0, 12.0,   0,  50),
@@ -623,110 +595,212 @@ AQI_BREAKPOINTS_PM25 = [
     (250.5,350.4,301,400),
     (350.5,500.4,401,500),
 ]
+STATE_NAME_TO_USPS = {"Alabama":"AL","Alaska":"AK","Arizona":"AZ","Arkansas":"AR","California":"CA","Colorado":"CO",
+    "Connecticut":"CT","Delaware":"DE","District of Columbia":"DC","Florida":"FL","Georgia":"GA","Hawaii":"HI","Idaho":"ID",
+    "Illinois":"IL","Indiana":"IN","Iowa":"IA","Kansas":"KS","Kentucky":"KY","Louisiana":"LA","Maine":"ME","Maryland":"MD",
+    "Massachusetts":"MA","Michigan":"MI","Minnesota":"MN","Mississippi":"MS","Missouri":"MO","Montana":"MT","Nebraska":"NE",
+    "Nevada":"NV","New Hampshire":"NH","New Jersey":"NJ","New Mexico":"NM","New York":"NY","North Carolina":"NC",
+    "North Dakota":"ND","Ohio":"OH","Oklahoma":"OK","Oregon":"OR","Pennsylvania":"PA","Rhode Island":"RI","South Carolina":"SC",
+    "South Dakota":"SD","Tennessee":"TN","Texas":"TX","Utah":"UT","Vermont":"VT","Virginia":"VA","Washington":"WA",
+    "West Virginia":"WV","Wisconsin":"WI","Wyoming":"WY","Puerto Rico":"PR"}
 
 def _pm25_to_aqi(pm25: float) -> int:
-    """EPA PM2.5 → AQI piecewise linear conversion."""
     if pm25 is None:
         return 0
     x = float(pm25)
     for c_low, c_high, aqi_low, aqi_high in AQI_BREAKPOINTS_PM25:
         if c_low <= x <= c_high:
             return int(round((aqi_high - aqi_low) / (c_high - c_low) * (x - c_low) + aqi_low))
-    return 500  # cap
+    return 500
+
+# ---------- OpenAQ state map fetch ----------
+OPENAQ_SESSION = requests.Session()
+OPENAQ_SESSION.headers.update({"User-Agent": "Climatrack/1.0 (Streamlit app)"})
 
 @st.cache_data(ttl=10 * 60, show_spinner=False)
-def fetch_airnow_state_pm25(api_key: str) -> pd.DataFrame:
-    """
-    Pull recent PM2.5 observations across CONUS and aggregate to latest
-    value per state (median of last 3 hours). Columns: state, pm25, aqi, updated_at.
-    """
-    if not api_key:
-        return pd.DataFrame(columns=["state","pm25","aqi","updated_at"])
-
-    end = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
-    start = end - timedelta(hours=3)
-    url = "https://www.airnowapi.org/aq/data/"
-    params = {
-        "startDate": start.strftime("%Y-%m-%dT%H"),
-        "endDate":   end.strftime("%Y-%m-%dT%H"),
-        "parameters": "PM25",
-        "BBOX": "-124.8,24.5,-66.9,49.5",  # CONUS
-        "dataType": "A",                   # aggregated
-        "format": "application/json",
-        "API_KEY": api_key,
-    }
-
-    try:
-        r = requests.get(url, params=params, timeout=25)
-        r.raise_for_status()
-        rows = r.json() if r.content else []
-    except Exception as e:
-        logger.info(f"AirNow fetch failed: {e}")
-        return pd.DataFrame(columns=["state","pm25","aqi","updated_at"])
-
-    recs = []
-    for it in rows or []:
-        if (it or {}).get("Parameter") != "PM25":
-            continue
-        st_code = (it.get("StateCode") or "").strip()
-        val = it.get("Value")
-        if not st_code or val is None:
-            continue
-        try:
-            ts = datetime.strptime(
-                f"{it.get('DateObserved')} {int(it.get('HourObserved',0)):02d}",
-                "%Y-%m-%d %H"
-            )
-        except Exception:
-            ts = end
-        recs.append({"state": st_code, "pm25": float(val), "ts": ts})
-
-    if not recs:
-        return pd.DataFrame(columns=["state","pm25","aqi","updated_at"])
-
-    df = pd.DataFrame(recs)
-    df = (df.sort_values("ts")
-            .groupby("state")
-            .agg(pm25=("pm25", "median"), updated_at=("ts", "max"))
-            .reset_index())
-    df["aqi"] = df["pm25"].apply(_pm25_to_aqi).astype(int)
-    df = df[df["state"].str.match(r"^[A-Z]{2}$", na=False)]
-    return df[["state", "pm25", "aqi", "updated_at"]]
+def fetch_openaq_state_pm25() -> pd.DataFrame:
+    """Latest 24–48h PM2.5 from OpenAQ aggregated to state level."""
+    def _get_df(hours_back: int, max_pages: int = 6) -> pd.DataFrame:
+        date_from = (datetime.now(timezone.utc) - timedelta(hours=hours_back)).isoformat(timespec="seconds")
+        page = 1
+        recs = []
+        total_results = 0
+        while page <= max_pages:
+            params = {"country":"US","parameter":"pm25","date_from":date_from,"limit":10000,"page":page,"order_by":"date","sort":"desc"}
+            try:
+                r = OPENAQ_SESSION.get("https://api.openaq.org/v2/measurements", params=params, timeout=25)
+                r.raise_for_status()
+                js = r.json()
+            except Exception as e:
+                logger.info(f"OpenAQ measurements fetch failed on page {page}: {e}")
+                break
+            results = js.get("results", []) or []
+            total_results += len(results)
+            if not results: break
+            for m in results:
+                state_name = (m.get("state") or "").strip()
+                code = STATE_NAME_TO_USPS.get(state_name)
+                if not code: continue
+                try:
+                    val = float(m.get("value"))
+                    ts_raw = (m.get("date") or {}).get("utc") or ""
+                    if not ts_raw: continue
+                    ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00")).replace(tzinfo=None)
+                except Exception:
+                    continue
+                recs.append({"state": code, "pm25": val, "ts": ts})
+            meta = js.get("meta", {})
+            found = int(meta.get("found", 0))
+            limit = int(meta.get("limit", 10000))
+            page_count = (found // limit) + (1 if found % limit else 0)
+            if page >= page_count: break
+            page += 1
+        if DEBUG_AQI:
+            st.write(f"OpenAQ measurements fetched: {total_results} rows (hours_back={hours_back})")
+        if not recs:
+            return pd.DataFrame(columns=["state","pm25","aqi","updated_at"])
+        df = pd.DataFrame(recs)
+        df = (df.sort_values("ts")
+                .groupby("state")
+                .agg(pm25=("pm25","median"), updated_at=("ts","max"))
+                .reset_index())
+        df["aqi"] = df["pm25"].apply(_pm25_to_aqi).astype(int)
+        df = df[df["state"].str.match(r"^[A-Z]{2}$", na=False)]
+        return df[["state","pm25","aqi","updated_at"]]
+    df = _get_df(24)
+    if df.empty: df = _get_df(48)
+    if DEBUG_AQI and not df.empty:
+        st.dataframe(df.sort_values("updated_at", ascending=False).head(15))
+    return df
 
 def render_us_aqi_map(aqi_df: pd.DataFrame):
-    """Plotly USA states choropleth using AQI values."""
     if aqi_df.empty:
         return px.choropleth()
-
-    aqi_scale = [
-        (0.00,  "#00e400"),  # Good
-        (0.20,  "#ffff00"),  # Moderate
-        (0.40,  "#ff7e00"),  # USG
-        (0.60,  "#ff0000"),  # Unhealthy
-        (0.80,  "#8f3f97"),  # Very Unhealthy
-        (1.00,  "#7e0023"),  # Hazardous
-    ]
-
+    aqi_scale = [(0.00,"#00e400"),(0.20,"#ffff00"),(0.40,"#ff7e00"),(0.60,"#ff0000"),(0.80,"#8f3f97"),(1.00,"#7e0023")]
     fig = px.choropleth(
-        aqi_df,
-        locations="state",
-        color="aqi",
-        locationmode="USA-states",
-        scope="usa",
-        color_continuous_scale=aqi_scale,
-        range_color=(0, 300),
-        hover_data={"pm25": ":.1f", "aqi": ":d", "state": True},
-        labels={"aqi": "AQI", "pm25": "PM₂․₅ (µg/m³)"},
-        title="U.S. PM₂․₅ → AQI (latest ~3h, AirNow)"
+        aqi_df, locations="state", color="aqi", locationmode="USA-states", scope="usa",
+        color_continuous_scale=aqi_scale, range_color=(0,300),
+        hover_data={"pm25":":.1f","aqi":":d","state":True},
+        labels={"aqi":"AQI","pm25":"PM₂․₅ (µg/m³)"},
+        title="U.S. PM₂․₅ → AQI (OpenAQ, latest ≤24–48h)"
     )
-    fig.update_layout(margin=dict(l=0, r=0, t=40, b=0))
+    fig.update_layout(margin=dict(l=0,r=0,t=40,b=0))
     return fig
 
 # ---------------------------------------------------------
-# Progress logging (persisted to data/footprint_log.csv)
+# Open-Meteo Risk tab helpers (Geocoding + Forecast + Archive)
 # ---------------------------------------------------------
-DATA_DIR = Path("data")
-DATA_DIR.mkdir(exist_ok=True)
+OPENMETEO = requests.Session()
+OPENMETEO.headers.update({"User-Agent": "Climatrack/1.0 (Streamlit app)"})
+
+@st.cache_data(ttl=60 * 60, show_spinner=False)
+def geocode_place(q: str) -> Optional[dict]:
+    q = (q or "").strip()
+    if not q: return None
+    try:
+        r = OPENMETEO.get("https://geocoding-api.open-meteo.com/v1/search",
+                          params={"name": q, "count": 1, "language":"en","format":"json"}, timeout=20)
+        r.raise_for_status()
+        js = r.json()
+        res = (js.get("results") or [None])[0]
+        if res:
+            return {"name":res.get("name"),"lat":float(res["latitude"]),"lon":float(res["longitude"]),
+                    "admin":res.get("admin1"),"country":res.get("country")}
+    except Exception:
+        pass
+    try:
+        r = requests.get("https://nominatim.openstreetmap.org/search",
+                         params={"q":q,"format":"json","limit":1},
+                         headers={"User-Agent":"Climatrack/1.0"}, timeout=20)
+        r.raise_for_status()
+        data = r.json()
+        if data:
+            d = data[0]
+            return {"name":d.get("display_name", q),"lat":float(d["lat"]),"lon":float(d["lon"]),
+                    "admin":None,"country":None}
+    except Exception as e:
+        logger.info(f"Fallback geocode failed: {e}")
+    return None
+
+@st.cache_data(ttl=15 * 60, show_spinner=False)
+def openmeteo_air_quality(lat: float, lon: float) -> pd.DataFrame:
+    r = OPENMETEO.get("https://air-quality-api.open-meteo.com/v1/air-quality",
+                      params={"latitude":lat,"longitude":lon,"hourly":"pm2_5","timezone":"UTC","forecast_days":4},
+                      timeout=20)
+    r.raise_for_status()
+    js = r.json()
+    times = js.get("hourly", {}).get("time", []) or []
+    pm25 = js.get("hourly", {}).get("pm2_5", []) or []
+    df = pd.DataFrame({"ts": pd.to_datetime(times), "pm25": pm25})
+    df["aqi"] = df["pm25"].apply(_pm25_to_aqi)
+    return df
+
+@st.cache_data(ttl=15 * 60, show_spinner=False)
+def openmeteo_weather(lat: float, lon: float) -> pd.DataFrame:
+    r = OPENMETEO.get("https://api.open-meteo.com/v1/forecast",
+                      params={"latitude":lat,"longitude":lon,
+                              "hourly":"temperature_2m,relative_humidity_2m,apparent_temperature",
+                              "timezone":"UTC","forecast_days":4}, timeout=20)
+    r.raise_for_status()
+    js = r.json()
+    H = js.get("hourly", {})
+    df = pd.DataFrame({
+        "ts": pd.to_datetime(H.get("time", []) or []),
+        "temp_c": H.get("temperature_2m", []) or [],
+        "rh": H.get("relative_humidity_2m", []) or [],
+        "apparent_c": H.get("apparent_temperature", []) or []
+    })
+    return df
+
+@st.cache_data(ttl=60 * 60, show_spinner=False)
+def openmeteo_recent_baseline(lat: float, lon: float) -> float:
+    end = date.today() - timedelta(days=1)
+    start = end - timedelta(days=35)
+    r = OPENMETEO.get("https://archive-api.open-meteo.com/v1/archive",
+                      params={"latitude":lat,"longitude":lon,"start_date":start.isoformat(),
+                              "end_date":end.isoformat(),"daily":"temperature_2m_max","timezone":"UTC"},
+                      timeout=20)
+    r.raise_for_status()
+    js = r.json()
+    daily = js.get("daily", {})
+    vals = daily.get("temperature_2m_max", []) or []
+    if not vals: return float("nan")
+    return float(pd.Series(vals).mean())
+
+def heat_index_c(temp_c: float, rh: float) -> float:
+    Tf = temp_c * 9/5 + 32
+    if Tf < 80:
+        HI_f = 0.5 * (Tf + 61.0 + ((Tf - 68.0) * 1.2) + (rh * 0.094))
+    else:
+        HI_f = (-42.379 + 2.04901523 * Tf + 10.14333127 * rh
+                - 0.22475541 * Tf * rh - 6.83783e-3 * Tf**2
+                - 5.481717e-2 * rh**2 + 1.22874e-3 * Tf**2 * rh
+                + 8.5282e-4 * Tf * rh**2 - 1.99e-6 * Tf**2 * rh**2)
+    return (HI_f - 32) / 1.8
+
+def score_from_aqi(aqi: float) -> float:
+    return max(0.0, min(100.0, (aqi / 300.0) * 100.0))
+
+def score_from_heatindex_c(hi_c: float) -> float:
+    hi_f = hi_c * 9/5 + 32
+    if hi_f < 80: return 0.0
+    if hi_f < 90: return 20.0 * (hi_f - 80) / 10.0
+    if hi_f < 103: return 20 + 30.0 * (hi_f - 90) / 13.0
+    if hi_f < 124: return 50 + 30.0 * (hi_f - 103) / 21.0
+    return 100.0
+
+def score_from_temp_anomaly(anom_c: float) -> float:
+    if anom_c <= 0: return 0.0
+    if anom_c >= 8.0: return 100.0
+    return 12.5 * anom_c
+
+def composite_risk(aqi_score: float, hi_score: float, anom_score: float) -> float:
+    return round(0.45 * aqi_score + 0.35 * hi_score + 0.20 * anom_score, 1)
+
+# ---------------------------------------------------------
+# Progress logging (persisted to data/footprint_log.csv) — stored in kg internally
+# ---------------------------------------------------------
+DATA_DIR = Path("data"); DATA_DIR.mkdir(exist_ok=True)
 LOG_PATH = DATA_DIR / "footprint_log.csv"
 
 def _load_log() -> pd.DataFrame:
@@ -753,37 +827,39 @@ def record_footprint(kg_total: float) -> None:
 st.title("🌍 Climatrack")
 st.markdown("### Calculate your carbon footprint with AI-powered analysis")
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "🏠 Calculator", "📊 Analysis", "📈 Insights", "📰 News", "👥 Community", "⚙️ Settings"
+# Tabs (Risk before Settings)
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    "🏠 Calculator", "📊 Analysis", "📈 Insights",
+    "📰 News", "👥 Community", "⚠️ Risk", "⚙️ Settings"
 ])
 
 with tab1:
   st.markdown("### 🎯 Your Carbon Footprint Dashboard")
   col1, col2, col3 = st.columns(3)
   with col1:
-      st.markdown("""
+      st.markdown(f"""
         <div class="metric-card">
             <div class="metric-label">🌱 Daily Goal</div>
-            <div class="metric-value" style="color: #2ecc71;">5.0</div>
-            <div>kg CO₂</div>
+            <div class="metric-value" style="color: #2ecc71;">{kg_to_lbs(5.0):.1f}</div>
+            <div>lb CO₂</div>
             <div class="status-badge status-success">Sustainable Target</div>
         </div>
         """, unsafe_allow_html=True)
   with col2:
-      st.markdown("""
+      st.markdown(f"""
         <div class="metric-card">
             <div class="metric-label">📊 Global Average</div>
-            <div class="metric-value" style="color: #3498db;">16.0</div>
-            <div>kg CO₂ per day</div>
+            <div class="metric-value" style="color: #3498db;">{kg_to_lbs(16.0):.1f}</div>
+            <div>lb CO₂ per day</div>
             <div class="status-badge status-warning">Above Target</div>
         </div>
         """, unsafe_allow_html=True)
   with col3:
-      st.markdown("""
+      st.markdown(f"""
         <div class="metric-card">
             <div class="metric-label">🎯 Target 2050</div>
-            <div class="metric-value" style="color: #e74c3c;">2.0</div>
-            <div>kg CO₂ per day</div>
+            <div class="metric-value" style="color: #e74c3c;">{kg_to_lbs(2.0):.1f}</div>
+            <div>lb CO₂ per day</div>
             <div class="status-badge status-info">Climate Goal</div>
         </div>
         """, unsafe_allow_html=True)
@@ -794,7 +870,9 @@ with tab1:
       placeholder="Example: I drove 10 miles to work, used 5 kWh of electricity, and ate chicken for dinner...",
       height=120
   )
-  goal = st.slider("Set your daily carbon footprint goal (kg CO₂)", 1.0, 20.0, 5.0, 0.5)
+  goal_lbs = st.slider("Set your daily carbon footprint goal (lb CO₂)", 2.0, 44.0, kg_to_lbs(5.0), 0.5)
+  goal_kg = goal_lbs / LBS_PER_KG
+
   if st.button("🚀 Calculate My Footprint", use_container_width=True):
       if user_input:
           with st.spinner("🤖 AI is analyzing your input..."):
@@ -822,45 +900,26 @@ Provide:
                   st.markdown("### 📊 Step-by-Step Environmental Impact Analysis")
                   st.markdown(detailed)
 
-      distance = len(re.findall(r'\d+\s*(?:miles?|km)', user_input.lower())) * 2
-      electricity = len(re.findall(r'\d+\s*(?:kwh|kilowatt)', user_input.lower())) * 1.5
-      meat = len(re.findall(r'\b(?:meat|chicken|beef|pork)\b', user_input.lower())) * 2.5
-      total = distance + electricity + meat
+      distance_kg = len(re.findall(r'\d+\s*(?:miles?|km)', user_input.lower())) * 2
+      electricity_kg = len(re.findall(r'\d+\s*(?:kwh|kilowatt)', user_input.lower())) * 1.5
+      meat_kg = len(re.findall(r'\b(?:meat|chicken|beef|pork)\b', user_input.lower())) * 2.5
+      total_kg = distance_kg + electricity_kg + meat_kg
 
-      record_footprint(total)
+      record_footprint(total_kg)
 
-      if total <= goal:
+      total_lbs = kg_to_lbs(total_kg)
+      if total_kg <= goal_kg:
           st.balloons()
-          st.success(f"🎉 You're under your goal of {goal} kg CO₂!")
+          st.success(f"🎉 You're under your goal of {goal_lbs:.1f} lb CO₂!")
       else:
-          notice(f"⚠️ You're {total - goal:.1f} kg CO₂ above your goal.", "warning")
+          notice(f"⚠️ You're {kg_to_lbs(total_kg - goal_kg):.1f} lb CO₂ above your goal.", "warning")
+
       c1, c2, c3 = st.columns(3)
-      with c1: st.metric("🚗 Transport", f"{distance:.1f} kg CO₂")
-      with c2: st.metric("⚡ Electricity", f"{electricity:.1f} kg CO₂")
-      with c3: st.metric("🍖 Food", f"{meat:.1f} kg CO₂")
+      with c1: st.metric("🚗 Transport", f"{kg_to_lbs(distance_kg):.1f} lb CO₂")
+      with c2: st.metric("⚡ Electricity", f"{kg_to_lbs(electricity_kg):.1f} lb CO₂")
+      with c3: st.metric("🍖 Food", f"{kg_to_lbs(meat_kg):.1f} lb CO₂")
 
 with tab2:
-  st.markdown("### 🔬 Advanced Carbon Analysis")
-
-  st.markdown("#### 🗺️ Live U.S. Air Quality (PM₂․₅ → AQI)")
-  st_autorefresh(interval=5 * 60 * 1000, key="aqi_map_refresh")
-
-  try:
-      AIRNOW_API_KEY = st.secrets.get("AIRNOW_API_KEY", os.getenv("AIRNOW_API_KEY", ""))
-      if not AIRNOW_API_KEY:
-          notice("Add your AirNow key to `.streamlit/secrets.toml` as <code>AIRNOW_API_KEY</code> to enable the live data.", "warning")
-      else:
-          aqi_df = fetch_airnow_state_pm25(AIRNOW_API_KEY)
-          if aqi_df.empty:
-              notice("No PM₂․₅ data returned recently by AirNow (last few hours). Map is hidden until data appears.", "warning")
-          else:
-              fig = render_us_aqi_map(aqi_df)
-              st.plotly_chart(fig, use_container_width=True)
-              updated = aqi_df["updated_at"].iloc[0] if not aqi_df.empty else "unknown"
-              st.caption(f"Source: AirNow API · Last updated: {updated}")
-  except Exception as e:
-      notice(f"Air quality data unavailable right now: {e}", "warning")
-
   st.markdown("---")
   st.markdown("#### 📊 Emission Categories")
   st.info("**Scope 1:** Direct emissions from vehicles and heating")
@@ -870,7 +929,7 @@ with tab2:
   st.markdown("---")
   st.markdown("#### ⚡ Region-Aware “What-If” Optimizer")
   location_setting = st.session_state.get("location", "United States")
-  units_setting = st.session_state.get("units", "Metric (kg CO₂)")
+  units_setting = UNITS_DEFAULT  
 
   zip_code = st.text_input("ZIP code (US) — optional, improves accuracy", value="")
   grid_kg, grid_label, is_fallback = get_grid_factor(zip_code, location_setting)
@@ -949,7 +1008,9 @@ with tab3:
   if df_hist.empty:
       st.info("No history yet. Run a calculation in the **Calculator** tab to start tracking.")
   else:
-      daily = (df_hist.set_index("ts").resample("D")["kg"].mean().dropna())
+      df_hist_lbs = df_hist.copy()
+      df_hist_lbs["lbs"] = df_hist_lbs["kg"] * LBS_PER_KG
+      daily = (df_hist_lbs.set_index("ts").resample("D")["lbs"].mean().dropna())
       last_30 = daily.last("30D")
 
       if last_30.empty:
@@ -957,7 +1018,7 @@ with tab3:
       else:
           fig, ax = plt.subplots(figsize=(10, 5))
           ax.plot(last_30.index, last_30.values, marker='o', linewidth=3)
-          ax.set_ylabel("kg CO₂ per day"); ax.set_title("Your Carbon Footprint (last 30 days)")
+          ax.set_ylabel("lb CO₂ per day"); ax.set_title("Your Carbon Footprint (last 30 days)")
           ax.grid(True, alpha=0.3)
           st.pyplot(fig)
 
@@ -966,14 +1027,15 @@ with tab3:
       delta_pct = (100.0 * (last_7 - prev_7) / prev_7) if (pd.notna(last_7) and pd.notna(prev_7) and prev_7 != 0) else None
 
       c1, c2, c3 = st.columns(3)
-      with c1: st.metric("7-day average", f"{(last_7 if pd.notna(last_7) else 0):.2f} kg CO₂")
-      with c2: st.metric("Previous 7-day avg", f"{(prev_7 if pd.notna(prev_7) else 0):.2f} kg CO₂")
-      with c3:
-          st.metric("Change vs prev week", "—" if delta_pct is None else f"{delta_pct:+.1f} %", delta=None)
+      with c1: st.metric("7-day average", f"{(last_7 if pd.notna(last_7) else 0):.2f} lb CO₂")
+      with c2: st.metric("Previous 7-day avg", f"{(prev_7 if pd.notna(prev_7) else 0):.2f} lb CO₂")
+      with c3: st.metric("Change vs prev week", "—" if delta_pct is None else f"{delta_pct:+.1f} %", delta=None)
 
       st.markdown("#### Data")
-      csv_bytes = _load_log().to_csv(index=False).encode("utf-8")
-      st.download_button("⬇️ Export log (CSV)", data=csv_bytes, file_name="footprint_log.csv", mime="text/csv")
+      export = df_hist.copy()
+      export["lbs"] = export["kg"] * LBS_PER_KG
+      csv_bytes = export[["ts","lbs"]].rename(columns={"lbs":"lb_CO2"}).to_csv(index=False).encode("utf-8")
+      st.download_button("⬇️ Export log (CSV, lb CO₂)", data=csv_bytes, file_name="footprint_log_lbs.csv", mime="text/csv")
 
       with st.expander("Maintenance"):
           colA, colB = st.columns(2)
@@ -985,10 +1047,7 @@ with tab3:
                   st.success("History cleared."); st.rerun()
 
 with tab4:
-  # 📰 Separate News tab
   st.markdown("### 📰 Climate & Environment News")
-
-  # Auto-refresh every 2 minutes (returns an incrementing count)
   auto_count = st_autorefresh(interval=2 * 60 * 1000, key="news_auto_refresh") or 0
 
   c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
@@ -997,30 +1056,18 @@ with tab4:
   with c2:
       news_window = st.selectbox("Time window", ["24h", "7d", "30d"], index=1, key="news_window")
   with c3:
-      source_pref = st.selectbox(
-          "Source",
-          ["All (aggregated)", "GDELT", "Google News", "NewsAPI", "The Guardian"],
-          index=0, key="news_source"
-      )
+      source_pref = st.selectbox("Source",
+          ["All (aggregated)", "GDELT", "Google News", "NewsAPI", "The Guardian"], index=0, key="news_source")
   with c4:
       if st.button("🔄 Refresh now", use_container_width=True):
           st.session_state["news_force_refresh"] = st.session_state.get("news_force_refresh", 0) + 1
   force_refresh = st.session_state.get("news_force_refresh", 0)
 
-  pref_map = {
-      "All (aggregated)": "all", "GDELT": "gdelt", "Google News": "googlenews", "NewsAPI": "newsapi", "The Guardian": "guardian",
-  }
-
+  pref_map = {"All (aggregated)": "all", "GDELT": "gdelt", "Google News": "googlenews", "NewsAPI": "newsapi", "The Guardian": "guardian"}
   fresh_value = int(auto_count) + int(force_refresh)
-
   with st.spinner("Fetching climate news..."):
-      news_items = get_climate_news(
-          query=news_query or "",
-          window=news_window,
-          limit=24,
-          source_pref=pref_map[source_pref],
-          fresh=fresh_value,
-      )
+      news_items = get_climate_news(query=news_query or "", window=news_window, limit=24,
+                                    source_pref=pref_map[source_pref], fresh=fresh_value)
 
   if not news_items:
       notice("No news found right now. Try a different time window or keyword.", "warning")
@@ -1093,17 +1140,115 @@ with tab5:
 """,
                           unsafe_allow_html=True
                       )
-
   st.caption("Sources are public Reddit posts. We display links and short snippets only.")
 
+# --------------------- RISK TAB ---------------------
 with tab6:
+  st.markdown("### ⚠️ Climate Risk Dashboard")
+  st.caption("Free data: Open-Meteo Air Quality & Forecast. Composite risk score from AQI, heat index, and temperature anomaly.")
+
+  cols = st.columns([3,2])
+  with cols[0]:
+    place = st.text_input("City or place", value="", placeholder="e.g., Queens, NY or 40.728,-73.794")
+  with cols[1]:
+    horizon = st.slider("Forecast horizon (hours)", 24, 96, 72, 1)
+
+  if not place.strip():
+      notice("Enter a city, ZIP, or `lat,lon` then press Enter.", "info")
+  else:
+      lat = lon = None
+      m = re.match(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$", place)
+      if m:
+          lat, lon = float(m.group(1)), float(m.group(2))
+          geo = {"name": place, "lat": lat, "lon": lon}
+      else:
+          geo = geocode_place(place)
+          if geo:
+              lat, lon = geo["lat"], geo["lon"]
+
+      if not (lat and lon):
+          notice("Couldn't geocode that place. Try a ZIP code or paste coordinates like `40.728,-73.794`.", "warning")
+      else:
+          with st.spinner("Fetching live air quality & weather…"):
+              try:
+                  df_aq = openmeteo_air_quality(lat, lon)
+                  df_wx = openmeteo_weather(lat, lon)
+                  baseline_max_c = openmeteo_recent_baseline(lat, lon)
+              except Exception as e:
+                  df_aq = df_wx = pd.DataFrame()
+                  baseline_max_c = float("nan")
+                  notice(f"Data fetch failed: {e}", "error")
+
+          if df_aq.empty or df_wx.empty:
+              notice("No forecast data returned for this location.", "warning")
+          else:
+              df = pd.merge_asof(df_aq.sort_values("ts"), df_wx.sort_values("ts"), on="ts")
+              now_utc = pd.Timestamp.utcnow().tz_localize(None)
+              df = df[df["ts"] >= now_utc].head(horizon)
+
+              if "rh" in df.columns and df["rh"].notna().any():
+                  df["hi_c"] = [heat_index_c(t, rh) for t, rh in zip(df["temp_c"].fillna(method="ffill"),
+                                                                    df["rh"].fillna(method="ffill"))]
+              else:
+                  df["hi_c"] = df.get("apparent_c", df["temp_c"])
+
+              df["aqi_score"] = df["aqi"].apply(score_from_aqi)
+              df["hi_score"] = df["hi_c"].apply(score_from_heatindex_c)
+
+              forecast_max_c = float(df["temp_c"].max()) if not df["temp_c"].isna().all() else float("nan")
+              anom_c = (forecast_max_c - baseline_max_c) if pd.notna(baseline_max_c) else 0.0
+              anom_score = score_from_temp_anomaly(anom_c)
+
+              peak_aqi = int(df["aqi"].max())
+              peak_hi_f = float(df["hi_c"].max() * 9/5 + 32)
+              aqi_score = float(df["aqi_score"].max())
+              hi_score = float(df["hi_score"].max())
+              total_risk = composite_risk(aqi_score, hi_score, anom_score)
+
+              m1, m2, m3, m4 = st.columns(4)
+              with m1: st.metric("Composite Risk (0–100)", f"{total_risk:.1f}")
+              with m2: st.metric("Peak AQI (next hrs)", f"{peak_aqi}")
+              with m3: st.metric("Peak Heat Index", f"{peak_hi_f:.0f} °F")
+              with m4: st.metric("Temp Anomaly vs 30-day max", f"{anom_c:+.1f} °C")
+
+              fig1 = px.line(df, x="ts", y="aqi", title="Hourly AQI forecast", labels={"ts":"UTC time","aqi":"AQI"})
+              fig1.update_layout(margin=dict(l=0,r=0,t=40,b=0))
+              st.plotly_chart(fig1, use_container_width=True)
+
+              fig2 = px.line(df, x="ts", y=[(df["hi_c"]*9/5+32)], title="Hourly Heat Index (°F)",
+                             labels={"ts":"UTC time","value":"Heat Index (°F)"})
+              fig2.update_layout(margin=dict(l=0,r=0,t=40,b=0), showlegend=False)
+              st.plotly_chart(fig2, use_container_width=True)
+
+              try:
+                  prompt = f"""
+Location: {geo.get('name','(lat,lon)')} (lat {lat:.3f}, lon {lon:.3f})
+Horizon: {horizon}h
+Peak AQI: {peak_aqi}
+Peak Heat Index (F): {peak_hi_f:.0f}
+Temp anomaly vs baseline (C): {anom_c:+.1f}
+Composite risk (0-100): {total_risk:.1f}
+
+Explain the risk in clear bullets (what to watch for, simple precautions for sensitive groups vs general public).
+"""
+                  txt = llm_complete(prompt, max_new_tokens=220, temp=0.3)
+              except Exception:
+                  txt = (
+                      f"- AQI peaks at {peak_aqi}; higher values mean worse air.\n"
+                      f"- Heat Index reaches ~{peak_hi_f:.0f} °F; hydrate, limit exertion in the afternoon.\n"
+                      f"- Temperature runs {anom_c:+.1f} °C vs recent max; expect {('warmer' if anom_c>0 else 'cooler')} conditions.\n"
+                      f"- Composite risk {total_risk:.1f}/100: adjust outdoor time and ventilation accordingly."
+                  )
+              st.info(txt)
+
+with tab7:
   st.markdown("### ⚙️ Settings & Preferences")
   c1, c2 = st.columns(2)
   with c1:
       st.markdown("#### 🌍 Location")
       location = st.selectbox("Select your region:", ["United States", "European Union", "Global Average"])
       st.markdown("#### 📊 Units")
-      units = st.radio("Choose your preferred units:", ["Metric (kg CO₂)", "Imperial (lbs CO₂)"])
+      units = st.radio("Choose your preferred units:", ["Imperial (lbs CO₂)", "Metric (kg CO₂)"], index=0)
   with c2:
       st.markdown("#### 🔔 Notifications")
       daily_reminders = st.checkbox("Daily reminders", value=True)
@@ -1111,8 +1256,8 @@ with tab6:
       achievements = st.checkbox("Achievement alerts", value=True)
   if st.button("💾 Save Settings", use_container_width=True):
       st.session_state["location"] = location
-      st.session_state["units"] = units
-      st.success("✅ Settings saved successfully!")
+      st.session_state["units"] = UNITS_DEFAULT
+      st.success("✅ Settings saved (display is locked to lb CO₂).")
 
 # ---------------------------------------------------------
 # Environment & Climate AI Assistant (BOTTOM SECTION)
@@ -1132,6 +1277,26 @@ with col1:
   if st.button("🌿 Ask Environment AI", use_container_width=True, key="env_ai_btn"):
       if ai_question.strip():
           with st.spinner("⏳ Environment AI is thinking..."):
+              def ask_environment_ai(question: str) -> dict:
+                try:
+                    q = (question or "").strip()[:1500]
+                    if not q:
+                        return {"allowed": False, "reply": "Please enter an environmental question."}
+                    classification_prompt = (
+                        f"Question: {q}\n"
+                        "Is this about environment, climate change, sustainability, energy, air/water, ecology, or related? "
+                        "Answer ONLY YES or NO."
+                    )
+                    is_env = "YES" in llm_complete(classification_prompt, max_new_tokens=6, temp=0.0).upper()
+                    if not is_env:
+                        return {"allowed": False, "reply": "I can only answer environment/climate related questions here."}
+                    answer_prompt = f"Question: {q}\nProvide a clear, practical answer in 4–7 sentences for a general audience."
+                    answer = llm_complete(answer_prompt, max_new_tokens=320, temp=0.4).strip()
+                    if not answer or len(answer) < 10:
+                        return {"allowed": True, "reply": "I need a little more detail to give a useful answer."}
+                    return {"allowed": True, "reply": answer}
+                except Exception as e:
+                    return {"allowed": False, "reply": f"Something went wrong: {e}"}
               result = ask_environment_ai(ai_question.strip())
           if result.get("allowed"):
               st.success("✅ Environment AI Response:")
@@ -1149,6 +1314,6 @@ st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #666; padding: 2rem;">
   <p>🌍 Made with ❤️ for the planet | Powered by AI | Built with Streamlit</p>
-  <p>Version 3.0 | Last updated: August 2024</p>
+  <p>Version 3.0 | Last updated: September 2024</p>
 </div>
 """, unsafe_allow_html=True)
