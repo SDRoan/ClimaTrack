@@ -60,6 +60,4 @@ Open **http://localhost:8501**
 - **Port**: `PORT=5050` for Flask (default 5050).
 - **Data**: Add `data/egrid_subregion_factors.csv` and `data/zip_to_egrid.csv` for finer region-aware calculations.
 
-## 📄 License
 
-MIT. **Made with ❤️ for the planet.**
