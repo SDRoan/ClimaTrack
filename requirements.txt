@@ -2,6 +2,8 @@ streamlit>=1.33
 transformers<5,>=4.39
 torch<3,>=2.1
 requests>=2.31
+trafilatura>=2.0
+duckduckgo-search>=4.0
 matplotlib>=3.7
 pandas
 plotly

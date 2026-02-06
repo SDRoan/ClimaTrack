@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Climatrack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8faf8;
+      --surface: #ffffff;
+      --border: #e2e8e6;
+      --text: #1a2e1a;
+      --text-muted: #5a6d5a;
+      --primary: #0d9488;
+      --primary-hover: #0f766e;
+      --primary-light: #ccfbf1;
+      --success: #059669;
+      --success-bg: #d1fae5;
+      --warn: #b45309;
+      --warn-bg: #fef3c7;
+      --error: #b91c1c;
+      --error-bg: #fee2e2;
+      --info: #0284c7;
+      --info-bg: #e0f2fe;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      min-height: 100vh;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 1.5rem 3rem;
+    }
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 1.5rem;
+      margin: 0 -1.5rem 0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .brand h1 { margin: 0; font-size: 1.75rem; color: var(--primary); }
+    .tagline { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .tab-btn:hover { background: var(--bg); color: var(--text); }
+    .tab-btn.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+    .tab-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      display: inline-block;
+    }
+    .tab-btn.active .tab-icon {
+      color: var(--primary);
+    }
+    .main-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 2rem;
+      margin-top: 1.5rem;
+      box-shadow: var(--shadow-md);
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .section-title { font-size: 1.5rem; margin: 0 0 0.5rem 0; color: var(--text); display: flex; align-items: center; gap: 0.5rem; }
+    .section-title .icon-svg { width: 1.35rem; height: 1.35rem; flex-shrink: 0; color: var(--primary); }
+    .section-title .text-climi { color: var(--primary); }
+    .icon-climi {
+      animation: climi-pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes climi-pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: brightness(1);
+      }
+      50% {
+        opacity: 0.9;
+        transform: scale(1.22) translateY(-3px);
+        filter: brightness(1.15);
+      }
+    }
+    .section-sub { color: var(--text-muted); margin: 0 0 1.5rem 0; }
+    .btn .icon-svg { width: 1.1rem; height: 1.1rem; vertical-align: -0.2em; margin-right: 0.35rem; }
+    h3 .icon-svg { width: 1.1rem; height: 1.1rem; vertical-align: -0.15em; margin-right: 0.35rem; color: var(--primary); }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text); }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 1rem;
+    }
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-ghost { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+    .btn-ghost:hover { background: var(--primary-light); }
+    .notice {
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-sm);
+      margin: 1rem 0;
+    }
+    .notice.success { background: var(--success-bg); color: var(--success); border-left: 3px solid var(--success); }
+    .notice.warning { background: var(--warn-bg); color: var(--warn); border-left: 3px solid var(--warn); }
+    .notice.error { background: var(--error-bg); color: var(--error); border-left: 3px solid var(--error); display: flex; align-items: flex-start; gap: 0.5rem; }
+.notice-error-icon { flex-shrink: 0; width: 1rem; height: 1rem; margin-top: 0.15rem; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23b91c1c"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>') no-repeat center; background-size: contain; }
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+    .metric-card {
+      background: var(--bg);
+      padding: 1.25rem;
+      border-radius: var(--radius-sm);
+      text-align: center;
+    }
+    .metric-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .metric-value { font-size: 1.75rem; font-weight: 700; color: var(--primary); }
+    .loading-wrap {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 2rem 1.5rem;
+      min-height: 200px;
+    }
+    .loading-wrap .loading-text {
+      color: var(--text-muted);
+      font-weight: 500;
+      margin: 0;
+      font-size: 1rem;
+    }
+    .loading-wrap .loading-earth-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 200px;
+      height: 200px;
+      flex-shrink: 0;
+      overflow: visible;
+      position: relative;
+    }
+    /* From Uiverse.io by AatreyuShau */
+    #cont {
+      scale: 0.6;
+      z-index: 100;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      height: 100%;
+      background: rgb(38, 22, 22);
+      perspective: 10000px;
+      transform-style: preserve-3d;
+      animation: spin 5s linear infinite;
+    }
+    #header-earth-cont #cont {
+      scale: 0.15;
+      background: transparent !important;
+    }
+    #header-earth-cont {
+      background: transparent !important;
+      overflow: visible;
+    }
+    #header-earth-cont .base {
+      display: none !important;
+    }
+    .point {
+      position: absolute;
+      width: 81px;
+      height: 81px;
+      margin: -5px 0 0 -5px;
+      border-radius: 15%;
+      background: #5a90ff;
+      box-shadow: 0 0 1px -0.3px #ffffff53;
+      z-index: 100;
+    }
+    .base {
+      scale: 0.9;
+      position: absolute;
+      width: 324.5px;
+      height: 324.5px;
+      border-radius: 100%;
+      background: #60a1f514;
+      box-shadow: 0 0 1px -0.3px #ffffff53;
+      z-index: 0;
+    }
+    #green {
+      border-radius: 0%;
+      background: radial-gradient(
+        ellipse 8vmin 10vmin at 20% 25%,
+        var(--land-dark, #2a3d26) 0 70%,
+        #5a90ff 71%
+      );
+      z-index: 0;
+    }
+    @keyframes spin {
+      0% {
+        transform: rotateZ(90deg) rotateY(360deg);
+      }
+      50% {
+        transform: rotateZ(90deg) rotateY(180deg);
+      }
+      100% {
+        transform: rotateZ(90deg) rotateY(0deg);
+      }
+    }
+    .continent {
+      position: absolute;
+      width: 132px;
+      height: 132px;
+      background: radial-gradient(rgba(98, 172, 98, 0.9) 54%, transparent 55%);
+      border: 1px solid rgba(0, 0, 0, 0.525);
+      transform-style: preserve-3d;
+    }
+    /* lon-60 */
+    .point:nth-child(2) {
+      transform: rotateX(-60deg) rotateY(0deg) translateZ(150px);
+    }
+    .point:nth-child(3) {
+      transform: rotateX(-60deg) rotateY(30deg) translateZ(150px);
+    }
+    .point:nth-child(4) {
+      transform: rotateX(-60deg) rotateY(60deg) translateZ(150px);
+    }
+    .point:nth-child(5) {
+      transform: rotateX(-60deg) rotateY(90deg) translateZ(150px);
+    }
+    .point:nth-child(6) {
+      transform: rotateX(-60deg) rotateY(120deg) translateZ(150px);
+    }
+    .point:nth-child(7) {
+      transform: rotateX(-60deg) rotateY(150deg) translateZ(150px);
+    }
+    .point:nth-child(8) {
+      transform: rotateX(-60deg) rotateY(180deg) translateZ(150px);
+    }
+    .point:nth-child(9) {
+      transform: rotateX(-60deg) rotateY(210deg) translateZ(150px);
+    }
+    .point:nth-child(10) {
+      transform: rotateX(-60deg) rotateY(240deg) translateZ(150px);
+    }
+    .point:nth-child(11) {
+      transform: rotateX(-60deg) rotateY(270deg) translateZ(150px);
+    }
+    .point:nth-child(12) {
+      transform: rotateX(-60deg) rotateY(300deg) translateZ(150px);
+    }
+    .point:nth-child(13) {
+      transform: rotateX(-60deg) rotateY(330deg) translateZ(150px);
+    }
+    /* lon-30 */
+    .point:nth-child(14) {
+      transform: rotateX(-30deg) rotateY(0deg) translateZ(150px);
+    }
+    .point:nth-child(15) {
+      transform: rotateX(-30deg) rotateY(30deg) translateZ(150px);
+    }
+    .point:nth-child(16) {
+      transform: rotateX(-30deg) rotateY(60deg) translateZ(150px);
+    }
+    .point:nth-child(17) {
+      transform: rotateX(-30deg) rotateY(90deg) translateZ(150px);
+    }
+    .point:nth-child(18) {
+      transform: rotateX(-30deg) rotateY(120deg) translateZ(150px);
+    }
+    .point:nth-child(19) {
+      transform: rotateX(-30deg) rotateY(150deg) translateZ(150px);
+    }
+    .point:nth-child(20) {
+      transform: rotateX(-30deg) rotateY(180deg) translateZ(150px);
+    }
+    .point:nth-child(21) {
+      transform: rotateX(-30deg) rotateY(210deg) translateZ(150px);
+    }
+    .point:nth-child(22) {
+      transform: rotateX(-30deg) rotateY(240deg) translateZ(150px);
+    }
+    .point:nth-child(23) {
+      transform: rotateX(-30deg) rotateY(270deg) translateZ(150px);
+    }
+    .point:nth-child(24) {
+      transform: rotateX(-30deg) rotateY(300deg) translateZ(150px);
+    }
+    .point:nth-child(25) {
+      transform: rotateX(-30deg) rotateY(330deg) translateZ(150px);
+    }
+    /* lon+0 */
+    .point:nth-child(26) {
+      transform: rotateX(0deg) rotateY(0deg) translateZ(150px);
+    }
+    .point:nth-child(27) {
+      transform: rotateX(0deg) rotateY(30deg) translateZ(150px);
+    }
+    .point:nth-child(28) {
+      transform: rotateX(0deg) rotateY(60deg) translateZ(150px);
+    }
+    .point:nth-child(29) {
+      transform: rotateX(0deg) rotateY(90deg) translateZ(150px);
+    }
+    .point:nth-child(30) {
+      transform: rotateX(0deg) rotateY(120deg) translateZ(150px);
+    }
+    .point:nth-child(31) {
+      transform: rotateX(0deg) rotateY(150deg) translateZ(150px);
+    }
+    .point:nth-child(32) {
+      transform: rotateX(0deg) rotateY(180deg) translateZ(150px);
+    }
+    .point:nth-child(33) {
+      transform: rotateX(0deg) rotateY(210deg) translateZ(150px);
+    }
+    .point:nth-child(34) {
+      transform: rotateX(0deg) rotateY(240deg) translateZ(150px);
+    }
+    .point:nth-child(35) {
+      transform: rotateX(0deg) rotateY(270deg) translateZ(150px);
+    }
+    .point:nth-child(36) {
+      transform: rotateX(0deg) rotateY(300deg) translateZ(150px);
+    }
+    .point:nth-child(37) {
+      transform: rotateX(0deg) rotateY(330deg) translateZ(150px);
+    }
+    /* lon+30 */
+    .point:nth-child(38) {
+      transform: rotateX(30deg) rotateY(0deg) translateZ(150px);
+    }
+    .point:nth-child(39) {
+      transform: rotateX(30deg) rotateY(30deg) translateZ(150px);
+    }
+    .point:nth-child(40) {
+      transform: rotateX(30deg) rotateY(60deg) translateZ(150px);
+    }
+    .point:nth-child(41) {
+      transform: rotateX(30deg) rotateY(90deg) translateZ(150px);
+    }
+    .point:nth-child(42) {
+      transform: rotateX(30deg) rotateY(120deg) translateZ(150px);
+    }
+    .point:nth-child(43) {
+      transform: rotateX(30deg) rotateY(150deg) translateZ(150px);
+    }
+    .point:nth-child(44) {
+      transform: rotateX(30deg) rotateY(180deg) translateZ(150px);
+    }
+    .point:nth-child(45) {
+      transform: rotateX(30deg) rotateY(210deg) translateZ(150px);
+    }
+    .point:nth-child(46) {
+      transform: rotateX(30deg) rotateY(240deg) translateZ(150px);
+    }
+    .point:nth-child(47) {
+      transform: rotateX(30deg) rotateY(270deg) translateZ(150px);
+    }
+    .point:nth-child(48) {
+      transform: rotateX(30deg) rotateY(300deg) translateZ(150px);
+    }
+    .point:nth-child(49) {
+      transform: rotateX(30deg) rotateY(330deg) translateZ(150px);
+    }
+    /* lon+60 */
+    .point:nth-child(50) {
+      transform: rotateX(60deg) rotateY(0deg) translateZ(150px);
+    }
+    .point:nth-child(51) {
+      transform: rotateX(60deg) rotateY(30deg) translateZ(150px);
+    }
+    .point:nth-child(52) {
+      transform: rotateX(60deg) rotateY(60deg) translateZ(150px);
+    }
+    .point:nth-child(53) {
+      transform: rotateX(60deg) rotateY(90deg) translateZ(150px);
+    }
+    .point:nth-child(54) {
+      transform: rotateX(60deg) rotateY(120deg) translateZ(150px);
+    }
+    .point:nth-child(55) {
+      transform: rotateX(60deg) rotateY(150deg) translateZ(150px);
+    }
+    .point:nth-child(56) {
+      transform: rotateX(60deg) rotateY(180deg) translateZ(150px);
+    }
+    .point:nth-child(57) {
+      transform: rotateX(60deg) rotateY(210deg) translateZ(150px);
+    }
+    .point:nth-child(58) {
+      transform: rotateX(60deg) rotateY(240deg) translateZ(150px);
+    }
+    .point:nth-child(59) {
+      transform: rotateX(60deg) rotateY(270deg) translateZ(150px);
+    }
+    .point:nth-child(60) {
+      transform: rotateX(60deg) rotateY(300deg) translateZ(150px);
+    }
+    .point:nth-child(61) {
+      transform: rotateX(60deg) rotateY(330deg) translateZ(150px);
+    }
+    /* lon+90 */
+    .point:nth-child(62) {
+      transform: rotateX(90deg) rotateY(0deg) translateZ(150px);
+    }
+    .point:nth-child(63) {
+      transform: rotateX(90deg) rotateY(30deg) translateZ(150px);
+    }
+    .point:nth-child(64) {
+      transform: rotateX(90deg) rotateY(60deg) translateZ(150px);
+    }
+    .point:nth-child(65) {
+      transform: rotateX(90deg) rotateY(90deg) translateZ(150px);
+    }
+    .point:nth-child(66) {
+      transform: rotateX(90deg) rotateY(120deg) translateZ(150px);
+    }
+    .point:nth-child(67) {
+      transform: rotateX(90deg) rotateY(150deg) translateZ(150px);
+    }
+    .point:nth-child(68) {
+      transform: rotateX(90deg) rotateY(180deg) translateZ(150px);
+    }
+    .point:nth-child(69) {
+      transform: rotateX(90deg) rotateY(210deg) translateZ(150px);
+    }
+    .point:nth-child(70) {
+      transform: rotateX(90deg) rotateY(240deg) translateZ(150px);
+    }
+    .point:nth-child(71) {
+      transform: rotateX(90deg) rotateY(270deg) translateZ(150px);
+    }
+    .point:nth-child(72) {
+      transform: rotateX(90deg) rotateY(300deg) translateZ(150px);
+    }
+    .point:nth-child(73) {
+      transform: rotateX(90deg) rotateY(330deg) translateZ(150px);
+    }
+    .c1 {
+      clip-path: polygon(20% 0%, 90% 15%, 70% 95%, 10% 70%);
+      transform: rotateX(10deg) rotateY(20deg) translateZ(157px);
+    }
+    .c2 {
+      clip-path: polygon(15% 10%, 95% 20%, 80% 85%, 5% 70%);
+      transform: rotateX(12deg) rotateY(23deg) translateZ(157px);
+    }
+    .c3 {
+      clip-path: polygon(30% 0%, 85% 15%, 90% 80%, 15% 95%);
+      transform: rotateX(8deg) rotateY(18deg) translateZ(157px);
+    }
+    .c4 {
+      clip-path: polygon(25% 5%, 100% 25%, 75% 90%, 5% 70%);
+      transform: rotateX(14deg) rotateY(21deg) translateZ(157px);
+    }
+    .c5 {
+      clip-path: polygon(10% 25%, 90% 5%, 85% 70%, 30% 95%);
+      transform: rotateX(9deg) rotateY(24deg) translateZ(157px);
+    }
+    .c6 {
+      clip-path: polygon(20% 10%, 80% 0%, 95% 70%, 25% 95%);
+      transform: rotateX(11deg) rotateY(16deg) translateZ(157px);
+    }
+    .c7 {
+      clip-path: polygon(15% 0%, 95% 20%, 70% 100%, 5% 80%);
+      transform: rotateX(7deg) rotateY(22deg) translateZ(157px);
+    }
+    .c8 {
+      clip-path: polygon(25% 0%, 85% 15%, 100% 75%, 15% 95%);
+      transform: rotateX(13deg) rotateY(19deg) translateZ(157px);
+    }
+    .c9 {
+      clip-path: polygon(10% 10%, 90% 5%, 80% 85%, 20% 95%);
+      transform: rotateX(10deg) rotateY(26deg) translateZ(157px);
+    }
+    .c10 {
+      clip-path: polygon(20% 5%, 95% 25%, 70% 95%, 10% 75%);
+      transform: rotateX(6deg) rotateY(20deg) translateZ(157px);
+    }
+    .c11 {
+      clip-path: polygon(15% 5%, 90% 15%, 75% 95%, 5% 80%);
+      transform: rotateX(-20deg) rotateY(60deg) translateZ(157px);
+    }
+    .c12 {
+      clip-path: polygon(25% 0%, 85% 20%, 95% 75%, 10% 95%);
+      transform: rotateX(-22deg) rotateY(63deg) translateZ(157px);
+    }
+    .c13 {
+      clip-path: polygon(20% 10%, 95% 5%, 85% 80%, 15% 90%);
+      transform: rotateX(-18deg) rotateY(58deg) translateZ(157px);
+    }
+    .c14 {
+      clip-path: polygon(30% 0%, 90% 25%, 70% 95%, 5% 70%);
+      transform: rotateX(-21deg) rotateY(64deg) translateZ(157px);
+    }
+    .c15 {
+      clip-path: polygon(15% 15%, 100% 10%, 85% 85%, 20% 95%);
+      transform: rotateX(-19deg) rotateY(56deg) translateZ(157px);
+    }
+    .c16 {
+      clip-path: polygon(25% 5%, 95% 20%, 75% 90%, 10% 70%);
+      transform: rotateX(-23deg) rotateY(61deg) translateZ(157px);
+    }
+    .c17 {
+      clip-path: polygon(20% 0%, 90% 10%, 100% 70%, 15% 95%);
+      transform: rotateX(-17deg) rotateY(59deg) translateZ(157px);
+    }
+    .c18 {
+      clip-path: polygon(15% 5%, 85% 20%, 70% 85%, 5% 70%);
+      transform: rotateX(-24deg) rotateY(62deg) translateZ(157px);
+    }
+    .c19 {
+      transform: rotateX(40deg) rotateY(-30deg) translateZ(157px);
+      clip-path: polygon(20% 0%, 90% 20%, 80% 90%, 10% 70%);
+    }
+    .c20 {
+      transform: rotateX(42deg) rotateY(-28deg) translateZ(157px);
+      clip-path: polygon(25% 5%, 95% 20%, 70% 95%, 5% 70%);
+    }
+    .c21 {
+      transform: rotateX(38deg) rotateY(-32deg) translateZ(157px);
+      clip-path: polygon(30% 0%, 85% 15%, 100% 75%, 15% 95%);
+    }
+    .c22 {
+      transform: rotateX(43deg) rotateY(-27deg) translateZ(157px);
+      clip-path: polygon(15% 10%, 90% 5%, 80% 85%, 20% 95%);
+    }
+    .c23 {
+      transform: rotateX(39deg) rotateY(-29deg) translateZ(157px);
+      clip-path: polygon(20% 5%, 95% 25%, 70% 95%, 10% 75%);
+    }
+    .c24 {
+      transform: rotateX(41deg) rotateY(-31deg) translateZ(157px);
+      clip-path: polygon(10% 20%, 90% 10%, 85% 80%, 30% 95%);
+    }
+    .c25 {
+      transform: rotateX(44deg) rotateY(-33deg) translateZ(157px);
+      clip-path: polygon(25% 0%, 100% 20%, 75% 90%, 15% 95%);
+    }
+    .c26 {
+      transform: rotateX(37deg) rotateY(-34deg) translateZ(157px);
+      clip-path: polygon(15% 15%, 85% 5%, 95% 80%, 20% 95%);
+    }
+    .c27 {
+      transform: rotateX(45deg) rotateY(-29deg) translateZ(157px);
+      clip-path: polygon(30% 0%, 90% 15%, 80% 100%, 10% 70%);
+    }
+    .c28 {
+      transform: rotateX(36deg) rotateY(-35deg) translateZ(157px);
+      clip-path: polygon(20% 0%, 80% 10%, 95% 70%, 25% 95%);
+    }
+    .c29 {
+      transform: rotateX(-10deg) rotateY(150deg) translateZ(157px);
+      clip-path: polygon(30% 0%, 90% 20%, 70% 90%, 10% 70%);
+    }
+    .c30 {
+      transform: rotateX(-12deg) rotateY(153deg) translateZ(157px);
+      clip-path: polygon(25% 5%, 85% 15%, 95% 75%, 15% 95%);
+    }
+    .c31 {
+      transform: rotateX(-14deg) rotateY(156deg) translateZ(157px);
+      clip-path: polygon(20% 10%, 95% 0%, 80% 85%, 20% 95%);
+    }
+    .c32 {
+      transform: rotateX(-16deg) rotateY(159deg) translateZ(157px);
+      clip-path: polygon(10% 20%, 90% 5%, 85% 70%, 30% 95%);
+    }
+    .c33 {
+      transform: rotateX(-18deg) rotateY(162deg) translateZ(157px);
+      clip-path: polygon(20% 0%, 85% 15%, 100% 75%, 15% 95%);
+    }
+    .c34 {
+      transform: rotateX(-20deg) rotateY(165deg) translateZ(157px);
+      clip-path: polygon(15% 15%, 95% 5%, 90% 85%, 25% 95%);
+    }
+    .c35 {
+      transform: rotateX(5deg) rotateY(-150deg) translateZ(157px);
+      clip-path: polygon(30% 0%, 90% 20%, 70% 90%, 10% 70%);
+    }
+    .c36 {
+      transform: rotateX(-45deg) rotateY(120deg) translateZ(157px);
+      clip-path: polygon(25% 5%, 95% 20%, 70% 95%, 5% 70%);
+    }
+    .c37 {
+      transform: rotateX(50deg) rotateY(90deg) translateZ(157px);
+      clip-path: polygon(20% 10%, 95% 0%, 85% 85%, 15% 95%);
+    }
+    .c38 {
+      transform: rotateX(-60deg) rotateY(200deg) translateZ(157px);
+      clip-path: polygon(10% 20%, 90% 5%, 100% 80%, 30% 95%);
+    }
+    .c39 {
+      transform: rotateX(25deg) rotateY(-100deg) translateZ(157px);
+      clip-path: polygon(20% 0%, 80% 10%, 90% 70%, 30% 95%);
+    }
+    .c40 {
+      transform: rotateX(15deg) rotateY(75deg) translateZ(157px);
+      clip-path: polygon(15% 0%, 95% 20%, 80% 85%, 10% 70%);
+    }
+    .c41 {
+      transform: rotateX(-30deg) rotateY(-60deg) translateZ(157px);
+      clip-path: polygon(25% 0%, 85% 15%, 95% 75%, 15% 95%);
+    }
+    .c42 {
+      transform: rotateX(35deg) rotateY(140deg) translateZ(157px);
+      clip-path: polygon(10% 10%, 90% 0%, 80% 80%, 20% 95%);
+    }
+    .c43 {
+      transform: rotateX(60deg) rotateY(-10deg) translateZ(157px);
+      clip-path: polygon(30% 0%, 90% 25%, 70% 95%, 10% 75%);
+    }
+    .c44 {
+      transform: rotateX(-55deg) rotateY(-130deg) translateZ(157px);
+      clip-path: polygon(20% 5%, 95% 20%, 85% 80%, 15% 90%);
+    }
+    .c45 {
+      transform: rotateX(0deg) rotateY(30deg) translateZ(157px);
+      clip-path: polygon(25% 0%, 85% 20%, 70% 90%, 5% 70%);
+    }
+    .c46 {
+      transform: rotateX(-10deg) rotateY(-170deg) translateZ(157px);
+      clip-path: polygon(15% 15%, 95% 5%, 90% 85%, 20% 95%);
+    }
+    .c47 {
+      transform: rotateX(20deg) rotateY(200deg) translateZ(157px);
+      clip-path: polygon(20% 0%, 80% 15%, 100% 70%, 15% 95%);
+    }
+    .c48 {
+      transform: rotateX(-25deg) rotateY(15deg) translateZ(157px);
+      clip-path: polygon(30% 0%, 95% 20%, 75% 95%, 10% 70%);
+    }
+    .c49 {
+      transform: rotateX(45deg) rotateY(-200deg) translateZ(157px);
+      clip-path: polygon(10% 20%, 90% 0%, 85% 70%, 20% 95%);
+    }
+    .c50 {
+      transform: rotateX(-35deg) rotateY(180deg) translateZ(157px);
+      clip-path: polygon(25% 0%, 85% 25%, 95% 75%, 15% 95%);
+    }
+    .cloud {
+      position: absolute;
+      width: 82px;
+      height: 152px;
+      background: radial-gradient(rgba(239, 218, 233, 0.697) 54%, transparent 55%);
+      border: 1px solid rgba(0, 0, 0, 0.525);
+      transform-style: preserve-3d;
+    }
+    .news-card-wrap { margin-bottom: 1.25rem; }
+    .news-card {
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      margin-bottom: 0.5rem;
+    }
+    .news-card a { color: var(--primary); text-decoration: none; font-weight: 500; }
+    .news-card a:hover { text-decoration: underline; }
+    .news-opinions {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--primary);
+    }
+    .news-opinions .opinion-agent {
+      margin-bottom: 0.6rem;
+      font-size: 0.9rem;
+      padding: 0.5rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .news-opinions .opinion-agent.voted {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+    .news-opinions .opinion-agent strong {
+      color: var(--primary);
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+    .news-opinions .opinion-vote label {
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+    .news-opinions .opinion-vote label:hover { color: var(--primary); }
+    .news-opinions .you-agreed {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--primary);
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="brand">
+        <div id="header-earth-cont" style="display: inline-block; width: 35px; height: 35px; vertical-align: middle; margin-right: 0.75rem; overflow: visible; background: transparent; position: relative;"></div>
+        <h1 style="display: inline-block; vertical-align: middle; margin: 0;">Climatrack</h1>
+      </div>
+      <p class="tagline">See how your daily choices affect your carbon footprint. Start with Calculator, then explore the other sections.</p>
+      <nav class="tabs" role="tablist">
+        <button type="button" class="tab-btn active" data-tab="calculator">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="currentColor">
+            <!-- Carbon Footprint Icon -->
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+            <!-- Footprint steps -->
+            <circle cx="8" cy="10" r="1.2" fill="currentColor"/>
+            <circle cx="10" cy="8" r="1.2" fill="currentColor"/>
+            <circle cx="12" cy="10" r="1.2" fill="currentColor"/>
+            <circle cx="14" cy="8" r="1.2" fill="currentColor"/>
+            <circle cx="16" cy="10" r="1.2" fill="currentColor"/>
+            <!-- Calculator display -->
+            <rect x="7" y="13" width="10" height="3" rx="0.5" fill="currentColor" opacity="0.3"/>
+            <path d="M9 14.5h6M10 15.5h4" stroke="currentColor" stroke-width="0.8"/>
+          </svg>
+          Calculator
+        </button>
+        <button type="button" class="tab-btn" data-tab="analysis">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="currentColor">
+            <!-- Bar chart with CO2 theme -->
+            <rect x="4" y="16" width="3" height="4" fill="currentColor"/>
+            <rect x="8" y="12" width="3" height="8" fill="currentColor"/>
+            <rect x="12" y="10" width="3" height="10" fill="currentColor"/>
+            <rect x="16" y="8" width="3" height="12" fill="currentColor"/>
+            <!-- CO2 molecule -->
+            <circle cx="20" cy="6" r="1.5" fill="currentColor" opacity="0.6"/>
+            <circle cx="18" cy="6" r="1" fill="currentColor" opacity="0.4"/>
+            <circle cx="22" cy="6" r="1" fill="currentColor" opacity="0.4"/>
+            <line x1="19.5" y1="6" x2="18.5" y2="6" stroke="currentColor" stroke-width="0.5" opacity="0.4"/>
+            <line x1="20.5" y1="6" x2="21.5" y2="6" stroke="currentColor" stroke-width="0.5" opacity="0.4"/>
+          </svg>
+          Analysis
+        </button>
+        <button type="button" class="tab-btn" data-tab="insights">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="currentColor">
+            <!-- Trending down arrow (reduction) -->
+            <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z" fill="currentColor"/>
+            <!-- Leaf symbol -->
+            <path d="M17 3c-2.5 0-4.5 2-4.5 4.5 0 1.5 1 3 2.5 3.5 1.5-.5 2.5-2 2.5-3.5C17.5 5 15.5 3 13 3z" fill="currentColor" opacity="0.4"/>
+            <path d="M13 7c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z" fill="currentColor" opacity="0.6"/>
+          </svg>
+          Insights
+        </button>
+        <button type="button" class="tab-btn" data-tab="news">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="currentColor">
+            <!-- Newspaper -->
+            <rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="7" y1="8" x2="17" y2="8" stroke="currentColor" stroke-width="1"/>
+            <line x1="7" y1="11" x2="17" y2="11" stroke="currentColor" stroke-width="1"/>
+            <line x1="7" y1="14" x2="13" y2="14" stroke="currentColor" stroke-width="1"/>
+            <!-- Leaf accent -->
+            <path d="M16 6c-1 0-2 .5-2.5 1.5.5-1 1.5-1.5 2.5-1.5s2 .5 2.5 1.5C18 6.5 17 6 16 6z" fill="currentColor" opacity="0.6"/>
+            <circle cx="17" cy="7" r="0.8" fill="currentColor" opacity="0.4"/>
+          </svg>
+          News
+        </button>
+        <button type="button" class="tab-btn" data-tab="community">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="currentColor">
+            <!-- People -->
+            <circle cx="9" cy="7" r="2.5" fill="currentColor"/>
+            <path d="M5 20c0-2.5 2-4.5 4.5-4.5s4.5 2 4.5 4.5" fill="currentColor"/>
+            <circle cx="15" cy="7" r="2.5" fill="currentColor"/>
+            <path d="M11 20c0-2.5 2-4.5 4.5-4.5s4.5 2 4.5 4.5" fill="currentColor"/>
+            <!-- Tree/Environment symbol -->
+            <path d="M12 12l-1 2h2l-1-2z" fill="currentColor" opacity="0.5"/>
+            <circle cx="12" cy="11" r="0.8" fill="currentColor" opacity="0.4"/>
+          </svg>
+          Community
+        </button>
+        <button type="button" class="tab-btn" data-tab="risk">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="currentColor">
+            <!-- Warning triangle -->
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" fill="currentColor"/>
+            <!-- Thermometer -->
+            <rect x="18" y="4" width="2" height="12" rx="1" fill="currentColor" opacity="0.6"/>
+            <circle cx="19" cy="18" r="1.5" fill="currentColor" opacity="0.6"/>
+            <rect x="17.5" y="6" width="3" height="2" fill="currentColor" opacity="0.4"/>
+          </svg>
+          Risk
+        </button>
+        <button type="button" class="tab-btn" data-tab="settings">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="currentColor">
+            <!-- Gear -->
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/>
+            <!-- Leaf accent -->
+            <path d="M12 14c-1 0-2-.5-2.5-1.5.5 1 1.5 1.5 2.5 1.5s2-.5 2.5-1.5C14 13.5 13 14 12 14z" fill="currentColor" opacity="0.3"/>
+          </svg>
+          Settings
+        </button>
+      </nav>
+    </header>
+
+    <main class="main-card">
+      <div id="panel-calculator" class="tab-panel active">
+        <h2 class="section-title">What does your day look like?</h2>
+        <p class="section-sub">We use these numbers as reference. Your result is based on what you enter below.</p>
+        <div class="metric-row">
+          <div class="metric-card">
+            <div class="metric-label">Good daily target</div>
+            <div class="metric-value">{{ "%.1f"|format(goal_lbs) }}</div>
+            <div class="metric-label">lb CO₂</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Typical person</div>
+            <div class="metric-value">{{ "%.1f"|format(avg_lbs) }}</div>
+            <div class="metric-label">lb CO₂/day</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Long-term goal</div>
+            <div class="metric-value">{{ "%.1f"|format(target_lbs) }}</div>
+            <div class="metric-label">lb CO₂/day</div>
+          </div>
+        </div>
+        <form id="form-calculator">
+          <div class="form-group">
+            <label>Your typical day</label>
+            <textarea name="user_input" placeholder="e.g. I drive 8 miles to work, use AC in summer, and have meat for lunch and dinner..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Daily carbon goal (lb CO₂)</label>
+            <input type="range" name="goal_lbs" min="2" max="44" step="0.5" value="11">
+            <span id="goal-display">11</span>
+          </div>
+          <button type="submit" class="btn btn-primary">Calculate my footprint</button>
+        </form>
+        <div id="result-calculator" style="margin-top:1.5rem;"></div>
+      </div>
+
+      <div id="panel-news" class="tab-panel">
+        <h2 class="section-title">Climate & environment news</h2>
+        <p class="section-sub">From Google News. Filter by topic or time range.</p>
+        <form id="form-news">
+          <div class="form-group">
+            <label>Search</label>
+            <input type="text" name="query" placeholder="e.g. wildfire, heatwave">
+          </div>
+          <div class="form-group">
+            <label>From last</label>
+            <select name="window">
+              <option value="24h">24h</option>
+              <option value="7d" selected>7d</option>
+              <option value="30d">30d</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">Fetch news</button>
+        </form>
+        <div id="result-news" style="margin-top:1.5rem;"></div>
+      </div>
+
+      <div id="panel-analysis" class="tab-panel">
+        <h2 class="section-title"><svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Region-Aware "What-If" Optimizer</h2>
+        <p class="section-sub">See how changes to your routine affect your footprint.</p>
+        <div class="notice info">
+          <strong>Scope 1:</strong> Direct emissions from vehicles and heating<br>
+          <strong>Scope 2:</strong> Indirect emissions from purchased electricity<br>
+          <strong>Scope 3:</strong> All other indirect emissions (supply chain, services, etc.)
+        </div>
+        <form id="form-analysis">
+          <div class="form-group">
+            <label>ZIP code (US) — optional, improves accuracy</label>
+            <input type="text" name="zip_code" placeholder="e.g. 10001">
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label>Daily electricity use (kWh)</label>
+              <input type="number" name="kwh_day" value="12.0" step="0.5" min="0">
+            </div>
+            <div class="form-group">
+              <label>High-impact meals per day</label>
+              <input type="number" name="meals" value="1.0" step="0.5" min="0">
+            </div>
+            <div class="form-group">
+              <label>Current meal type</label>
+              <select name="meal_now">
+                <option value="Chicken">Chicken</option>
+                <option value="Pork">Pork</option>
+                <option value="Vegetarian">Vegetarian</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Commute miles per day</label>
+              <input type="number" name="commute_miles" value="10.0" step="1" min="0">
+            </div>
+            <div class="form-group">
+              <label>Commute mode (current)</label>
+              <select name="commute_mode">
+                <option value="Gasoline car">Gasoline car</option>
+                <option value="Hybrid">Hybrid</option>
+                <option value="EV">EV</option>
+                <option value="Bus">Bus</option>
+                <option value="Rail">Rail</option>
+                <option value="Bike/Walk">Bike/Walk</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>EV efficiency (kWh/mi) — if EV</label>
+              <input type="number" name="ev_eff" value="0.30" step="0.01" min="0.15" max="0.45">
+            </div>
+          </div>
+          <h3 style="margin-top: 1.5rem;">Try changes</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label>Reduce electricity use (%)</label>
+              <input type="range" name="eff_reduction" min="0" max="50" value="20" step="1">
+              <span id="eff-display">20</span>%
+            </div>
+            <div class="form-group">
+              <label>Switch commute to</label>
+              <select name="target_mode">
+                <option value="(no change)">(no change)</option>
+                <option value="Hybrid">Hybrid</option>
+                <option value="EV">EV</option>
+                <option value="Bus">Bus</option>
+                <option value="Rail">Rail</option>
+                <option value="Bike/Walk">Bike/Walk</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Swap meal to</label>
+              <select name="meal_swap">
+                <option value="(no change)">(no change)</option>
+                <option value="Chicken">Chicken</option>
+                <option value="Pork">Pork</option>
+                <option value="Vegetarian">Vegetarian</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Calculate optimization</button>
+        </form>
+        <div id="result-analysis" style="margin-top:1.5rem;"></div>
+      </div>
+
+      <div id="panel-insights" class="tab-panel">
+        <h2 class="section-title"><svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>Your Carbon Journey</h2>
+        <p class="section-sub">Track your progress over time.</p>
+        <div id="result-insights" style="margin-top:1.5rem;">
+          <div class="notice info">No history yet. Run a calculation in the <strong>Calculator</strong> tab to start tracking.</div>
+        </div>
+      </div>
+
+      <div id="panel-community" class="tab-panel">
+        <h2 class="section-title"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>You're Not Alone — Real Stories</h2>
+        <p class="section-sub">Find similar climate-related problems and solutions from Reddit.</p>
+        <form id="form-community">
+          <div class="form-group">
+            <label>Describe your climate-related problem (be specific):</label>
+            <textarea name="issue_text" placeholder="Ex: Can't breathe properly during wildfire smoke in Queens; looking for masks/filters/indoor tips." rows="4"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Find similar stories</button>
+        </form>
+        <div id="result-community" style="margin-top:1.5rem;"></div>
+      </div>
+
+      <div id="panel-risk" class="tab-panel">
+        <h2 class="section-title"><svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>Climate Risk Dashboard</h2>
+        <p class="section-sub">Free data: Open-Meteo Air Quality & Forecast. Composite risk score from AQI, heat index, and temperature anomaly.</p>
+        <form id="form-risk">
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label>City or place</label>
+              <input type="text" name="place" placeholder="e.g., Queens, NY or 40.728,-73.794">
+            </div>
+            <div class="form-group">
+              <label>Forecast horizon (hours)</label>
+              <input type="range" name="horizon" min="24" max="96" value="72" step="1">
+              <span id="horizon-display">72</span>h
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">Get risk forecast</button>
+        </form>
+        <div id="result-risk" style="margin-top:1.5rem;"></div>
+      </div>
+
+      <div id="panel-settings" class="tab-panel">
+        <h2 class="section-title"><svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>Settings & Preferences</h2>
+        <form id="form-settings">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            <div>
+              <h3><svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>Location</h3>
+              <div class="form-group">
+                <label>Select your region:</label>
+                <select name="location">
+                  <option value="United States">United States</option>
+                  <option value="European Union">European Union</option>
+                  <option value="Global Average">Global Average</option>
+                </select>
+              </div>
+              <h3><svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Units</h3>
+              <div class="form-group">
+                <label>
+                  <input type="radio" name="units" value="Imperial (lbs CO₂)" checked> Imperial (lbs CO₂)
+                </label>
+                <label>
+                  <input type="radio" name="units" value="Metric (kg CO₂)"> Metric (kg CO₂)
+                </label>
+              </div>
+            </div>
+            <div>
+              <h3><svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>Notifications</h3>
+              <div class="form-group">
+                <label><input type="checkbox" name="daily_reminders" checked> Daily reminders</label>
+              </div>
+              <div class="form-group">
+                <label><input type="checkbox" name="weekly_reports"> Weekly progress reports</label>
+              </div>
+              <div class="form-group">
+                <label><input type="checkbox" name="achievements" checked> Achievement alerts</label>
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary"><svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>Save Settings</button>
+        </form>
+        <div id="result-settings" style="margin-top:1.5rem;"></div>
+      </div>
+    </main>
+
+    <div class="main-card" style="margin-top: 2rem;">
+      <h2 class="section-title"><svg class="icon-svg icon-climi" viewBox="0 0 24 24" fill="currentColor"><path d="M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3zM7.5 11.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5S9.83 13 9 13s-1.5-.67-1.5-1.5zM16 17H8v-2h8v2zm-.5-4c-.83 0-1.5-.67-1.5-1.5S14.67 10 15.5 10s1.5.67 1.5 1.5S15.33 13 14.5 13z"/></svg>Ask <span class="text-climi">Climi</span></h2>
+      <p class="section-sub">Only climate and environment questions — e.g. climate change, sustainability, carbon footprint, green energy, recycling, conservation.</p>
+      <form id="form-ai-assistant">
+        <div class="form-group">
+          <label>Ask your climate or environment question:</label>
+          <textarea name="question" placeholder="Examples: How can I reduce my carbon footprint? What causes climate change? How do solar panels work? Is recycling effective?" rows="4"></textarea>
+          <p class="form-hint" style="margin-top:0.35rem; font-size:0.85rem; color: var(--text-muted);">Off-topic questions (e.g. general knowledge, cooking, sports) will not be answered.</p>
+        </div>
+        <button type="submit" class="btn btn-primary"><svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.09-13 3.08 2.78.78 5 2.95 5 5.92 0 2.04-1.66 3.7-3.7 3.7-.95 0-1.81-.37-2.45-.97l-.03 2.43-1.61.59L5 8c2.17 0 4.09.97 5.38 2.38C10.5 11.5 11 13 12 13h.5c1.5 0 2.5-1.5 2.5-3 0-1.5-1-2.5-2-3z"/></svg>Ask Environment AI</button>
+      </form>
+      <div id="result-ai-assistant" style="margin-top:1.5rem;"></div>
+    </div>
+
+    <footer style="text-align: center; color: var(--text-muted); padding: 2rem 1.5rem; margin-top: 3rem;">
+      <p style="margin: 0;">Made with <svg style="width:0.9rem;height:0.9rem;vertical-align:-0.1em;" viewBox="0 0 24 24" fill="#dc2626"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg> for the planet</p>
+    </footer>
+  </div>
+
+  <script>
+    function createEarthGlobe(containerId) {
+      var cont = document.getElementById(containerId);
+      if (!cont) return;
+      var points = '';
+      for (var i = 0; i < 73; i++) {
+        points += '<div class="point"></div>';
+      }
+      var continents = '';
+      for (var i = 1; i <= 50; i++) {
+        continents += '<div class="continent c' + i + '"></div>';
+      }
+      cont.innerHTML = '<div id="cont">' +
+        points + continents +
+        '</div>';
+    }
+    window.addEventListener('DOMContentLoaded', function() {
+      createEarthGlobe('header-earth-cont');
+    });
+    function escapeHtml(s) {
+      if (s == null) return '';
+      var t = String(s);
+      return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function showLoading(el) {
+      el.innerHTML = '<div class="loading-wrap">' +
+        '<p class="loading-text">Loading</p>' +
+        '</div>';
+    }
+    function showError(el, msg) {
+      el.innerHTML = '<div class="notice error">' + (msg || 'Something went wrong.') + '</div>';
+    }
+    function formatAiAnalysis(text) {
+      if (!text) return '';
+      var s = String(text)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      s = s.replace(/^#{1,6}\s*(.+)$/gm, '<br><strong>$1</strong>');
+      s = s.replace(/^\s*\*\s+/gm, '• ');
+      s = s.replace(/^\s*\+\s+/gm, '  ◦ ');
+      s = s.replace(/^\s*•\s+/gm, '• ');
+      s = s.replace(/\n/g, '<br>');
+      return s;
+    }
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('panel-' + this.dataset.tab).classList.add('active');
+      });
+    });
+    const goalInput = document.querySelector('#form-calculator input[name="goal_lbs"]');
+    const goalDisplay = document.getElementById('goal-display');
+    if (goalInput) goalInput.addEventListener('input', () => { goalDisplay.textContent = goalInput.value; });
+    document.getElementById('form-calculator').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const el = document.getElementById('result-calculator');
+      showLoading(el);
+      const form = e.target;
+      const body = { user_input: form.user_input.value, goal_lbs: parseFloat(form.goal_lbs.value) };
+      try {
+        const r = await fetch('/api/calculate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (!r.ok) { showError(el, d.error); return; }
+        let html = '';
+        if (d.classification_error) html += '<div class="notice error">' + d.classification_error + '</div>';
+        if (d.ai_analysis) html += '<div class="notice success">AI Analysis</div><div class="ai-analysis-formatted" style="margin:1rem 0; line-height:1.5;">' + formatAiAnalysis(d.ai_analysis) + '</div>';
+        html += '<div class="result-metrics"><span>Transport: ' + d.distance_lbs + ' lb CO₂</span> <span>Electricity: ' + d.electricity_lbs + ' lb CO₂</span> <span>Food: ' + d.food_lbs + ' lb CO₂</span></div>';
+        html += '<p><strong>Total: ' + d.total_lbs + ' lb CO₂</strong> (goal: ' + d.goal_lbs + ')</p>';
+        if (d.under_goal) html += '<div class="notice success">You\'re under your goal!</div>';
+        else html += '<div class="notice warning">You\'re ' + (d.total_lbs - d.goal_lbs).toFixed(1) + ' lb CO₂ above your goal.</div>';
+        el.innerHTML = html;
+      } catch (err) { showError(el, err.message); }
+    });
+    let lastNewsItems = [];
+    document.getElementById('form-news').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const el = document.getElementById('result-news');
+      showLoading(el);
+      const form = e.target;
+      const body = { query: form.query.value, window: form.window.value };
+      try {
+        const r = await fetch('/api/news', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (!d.items || !d.items.length) { el.innerHTML = '<p class="notice warning">No headlines found.</p>'; return; }
+        lastNewsItems = d.items;
+        let html = '';
+        d.items.forEach(function(it, idx) {
+          html += '<div class="news-card-wrap"><div class="news-card">';
+          html += '<a href="' + escapeHtml(it.url) + '" target="_blank"><strong>' + escapeHtml(it.title) + '</strong></a>';
+          if (it.when) html += '<br><small>' + escapeHtml(it.when) + '</small>';
+          if (it.summary) html += '<div style="margin-top:0.35rem;">' + escapeHtml(it.summary) + '</div>';
+          html += ' <a href="' + escapeHtml(it.url) + '" target="_blank">Open →</a>';
+          html += '</div><button type="button" class="btn btn-ghost btn-opinions" data-idx="' + idx + '">What do AI agents think?</button><div class="news-opinions" id="news-opinions-' + idx + '" style="display:none;"></div></div>';
+        });
+        el.innerHTML = html;
+      } catch (err) { showError(el, err.message); }
+    });
+    document.getElementById('result-news').addEventListener('click', async (e) => {
+      const btn = e.target.closest('.btn-opinions');
+      if (!btn) return;
+      const idx = parseInt(btn.getAttribute('data-idx'), 10);
+      const item = lastNewsItems[idx];
+      if (!item) return;
+      const opinionsEl = document.getElementById('news-opinions-' + idx);
+      if (!opinionsEl) return;
+      if (opinionsEl.style.display === 'block' && opinionsEl.innerHTML) return;
+      opinionsEl.style.display = 'block';
+      opinionsEl.innerHTML = '<p class="loading-text">Loading</p>';
+      try {
+        const r = await fetch('/api/news/opinions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: item.title, summary: item.summary || '', url: item.url || '' }) });
+        const d = await r.json();
+        if (d.error && !d.opinions) { opinionsEl.innerHTML = '<p class="notice error">' + escapeHtml(d.error) + '</p>'; return; }
+        let html = '<p style="margin:0 0 0.5rem 0; font-weight:600; font-size:0.85rem;">AI agents read the full article and shared their views:</p>';
+        (d.opinions || []).forEach(function(o) {
+          html += '<div class="opinion-agent" data-agent="' + escapeHtml(o.agent) + '"><strong>' + escapeHtml(o.agent) + '</strong> ' + escapeHtml(o.opinion) + '<div class="opinion-vote"><label><input type="radio" name="news-vote-' + idx + '" value="' + escapeHtml(o.agent) + '"> I agree with this</label></div></div>';
+        });
+        html += '<div class="you-agreed" id="you-agreed-' + idx + '" style="display:none;"></div>';
+        opinionsEl.innerHTML = html;
+        opinionsEl.querySelectorAll('input[name="news-vote-' + idx + '"]').forEach(function(radio) {
+          radio.addEventListener('change', function() {
+            var container = opinionsEl;
+            var agent = this.value;
+            container.querySelectorAll('.opinion-agent').forEach(function(el) { el.classList.remove('voted'); });
+            this.closest('.opinion-agent').classList.add('voted');
+            var agreedEl = document.getElementById('you-agreed-' + idx);
+            if (agreedEl) { agreedEl.style.display = 'block'; agreedEl.textContent = 'You agreed with: ' + agent; }
+          });
+        });
+      } catch (err) { opinionsEl.innerHTML = '<p class="notice error">' + escapeHtml(err.message) + '</p>'; }
+    });
+    // Slider displays
+    const effInput = document.querySelector('#form-analysis input[name="eff_reduction"]');
+    const effDisplay = document.getElementById('eff-display');
+    if (effInput && effDisplay) effInput.addEventListener('input', () => { effDisplay.textContent = effInput.value; });
+    const horizonInput = document.querySelector('#form-risk input[name="horizon"]');
+    const horizonDisplay = document.getElementById('horizon-display');
+    if (horizonInput && horizonDisplay) horizonInput.addEventListener('input', () => { horizonDisplay.textContent = horizonInput.value; });
+    // Analysis form
+    document.getElementById('form-analysis').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const el = document.getElementById('result-analysis');
+      showLoading(el);
+      const form = e.target;
+      const body = {
+        zip_code: form.zip_code.value,
+        kwh_day: parseFloat(form.kwh_day.value),
+        meals: parseFloat(form.meals.value),
+        meal_now: form.meal_now.value,
+        commute_miles: parseFloat(form.commute_miles.value),
+        commute_mode: form.commute_mode.value,
+        ev_eff: parseFloat(form.ev_eff.value),
+        eff_reduction: parseFloat(form.eff_reduction.value),
+        target_mode: form.target_mode.value,
+        meal_swap: form.meal_swap.value
+      };
+      try {
+        const r = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (!r.ok) { showError(el, d.error); return; }
+        let html = '<div class="metric-row">';
+        html += '<div class="metric-card"><div class="metric-label">Baseline total</div><div class="metric-value">' + d.baseline_total.toFixed(2) + '</div><div class="metric-label">lb CO₂</div></div>';
+        html += '<div class="metric-card"><div class="metric-label">Optimized total</div><div class="metric-value">' + d.optimized_total.toFixed(2) + '</div><div class="metric-label">lb CO₂</div></div>';
+        html += '<div class="metric-card"><div class="metric-label">Savings</div><div class="metric-value">' + d.savings.toFixed(2) + '</div><div class="metric-label">lb CO₂</div></div>';
+        html += '</div>';
+        if (d.top_actions && d.top_actions.length) {
+          html += '<h3>Top actions to hit your goal</h3><ul>';
+          d.top_actions.forEach(function(a) { html += '<li><strong>' + escapeHtml(a.name) + '</strong>: save <strong>' + a.savings.toFixed(2) + ' lb CO₂/day</strong></li>'; });
+          html += '</ul>';
+        }
+        el.innerHTML = html;
+      } catch (err) { showError(el, err.message); }
+    });
+    // Community form
+    document.getElementById('form-community').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const el = document.getElementById('result-community');
+      showLoading(el);
+      const form = e.target;
+      const body = { issue_text: form.issue_text.value };
+      try {
+        const r = await fetch('/api/community', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (!r.ok) { showError(el, d.error); return; }
+        let html = '';
+        if (d.solution) html += '<div class="notice success"><h3>Suggested solution</h3>' + formatAiAnalysis(d.solution) + '</div>';
+        if (d.posts && d.posts.length) {
+          var strictPosts = d.posts.filter(function(p) { return p.tier === 'strict'; });
+          var relatedPosts = d.posts.filter(function(p) { return p.tier === 'related'; });
+          function renderPost(p) {
+            return '<div class="news-card"><a href="' + escapeHtml(p.url) + '" target="_blank"><strong>' + escapeHtml(p.title) + '</strong></a><br>' +
+              '<small>r/' + escapeHtml(p.subreddit) + ' · u/' + escapeHtml(p.author) + ' · ' + escapeHtml(p.created) + ' · ' + p.score + ' upvotes</small>' +
+              (p.snippet ? '<div style="margin-top:0.5rem;">' + escapeHtml(p.snippet) + '</div>' : '') +
+              ' <a href="' + escapeHtml(p.url) + '" target="_blank">Open thread →</a></div>';
+          }
+          if (strictPosts.length) {
+            html += '<h3>Closest matches</h3>';
+            strictPosts.forEach(function(p) { html += renderPost(p); });
+          }
+          if (relatedPosts.length) {
+            html += '<h3 style="margin-top:1.25rem;">Also related</h3>';
+            relatedPosts.forEach(function(p) { html += renderPost(p); });
+          }
+          if (d.summary) html += '<div class="notice info" style="margin-top:1.25rem;"><h3>What others on Reddit did</h3>' + formatAiAnalysis(d.summary) + '</div>';
+        } else {
+          html += '<div class="notice warning">No related posts found. Try rephrasing or adding more detail (e.g. what you’ve tried, location, or specific symptoms).</div>';
+        }
+        el.innerHTML = html;
+      } catch (err) { showError(el, err.message); }
+    });
+    // Risk form
+    document.getElementById('form-risk').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const el = document.getElementById('result-risk');
+      showLoading(el);
+      const form = e.target;
+      const body = { place: form.place.value, horizon: parseInt(form.horizon.value, 10) };
+      try {
+        const r = await fetch('/api/risk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (!r.ok) { showError(el, d.error); return; }
+        let html = '<div class="metric-row">';
+        html += '<div class="metric-card"><div class="metric-label">Composite Risk</div><div class="metric-value">' + d.composite_risk.toFixed(1) + '</div><div class="metric-label">(0-100)</div></div>';
+        html += '<div class="metric-card"><div class="metric-label">Peak AQI</div><div class="metric-value">' + d.peak_aqi + '</div><div class="metric-label">(next ' + d.horizon + 'h)</div></div>';
+        html += '<div class="metric-card"><div class="metric-label">Peak Heat Index</div><div class="metric-value">' + d.peak_hi_f.toFixed(0) + '</div><div class="metric-label">°F</div></div>';
+        html += '<div class="metric-card"><div class="metric-label">Temp Anomaly</div><div class="metric-value">' + (d.temp_anomaly > 0 ? '+' : '') + d.temp_anomaly.toFixed(1) + '</div><div class="metric-label">°C</div></div>';
+        html += '</div>';
+        if (d.risk_explanation) html += '<div class="notice info">' + formatAiAnalysis(d.risk_explanation) + '</div>';
+        el.innerHTML = html;
+      } catch (err) { showError(el, err.message); }
+    });
+    // Settings form
+    document.getElementById('form-settings').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const el = document.getElementById('result-settings');
+      const form = e.target;
+      const body = {
+        location: form.location.value,
+        units: form.units.value,
+        daily_reminders: form.daily_reminders.checked,
+        weekly_reports: form.weekly_reports.checked,
+        achievements: form.achievements.checked
+      };
+      try {
+        const r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (!r.ok) { showError(el, d.error); return; }
+        el.innerHTML = '<div class="notice success">✅ Settings saved!</div>';
+      } catch (err) { showError(el, err.message); }
+    });
+    // Load insights on tab switch
+    document.querySelector('[data-tab="insights"]').addEventListener('click', async function() {
+      const el = document.getElementById('result-insights');
+      if (el.innerHTML.includes('No history')) {
+        showLoading(el);
+        try {
+          const r = await fetch('/api/insights', { method: 'GET' });
+          const d = await r.json();
+          if (!r.ok) { showError(el, d.error); return; }
+          if (!d.has_data) {
+            el.innerHTML = '<div class="notice info">No history yet. Run a calculation in the <strong>Calculator</strong> tab to start tracking.</div>';
+          } else {
+            let html = '<div class="metric-row">';
+            html += '<div class="metric-card"><div class="metric-label">7-day average</div><div class="metric-value">' + d.last_7_avg.toFixed(2) + '</div><div class="metric-label">lb CO₂</div></div>';
+            html += '<div class="metric-card"><div class="metric-label">Previous 7-day avg</div><div class="metric-value">' + d.prev_7_avg.toFixed(2) + '</div><div class="metric-label">lb CO₂</div></div>';
+            html += '<div class="metric-card"><div class="metric-label">Change</div><div class="metric-value">' + (d.change_pct !== null ? (d.change_pct > 0 ? '+' : '') + d.change_pct.toFixed(1) + '%' : '—') + '</div></div>';
+            html += '</div>';
+            el.innerHTML = html;
+          }
+        } catch (err) { showError(el, err.message); }
+      }
+    });
+    // AI Assistant form
+    document.getElementById('form-ai-assistant').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const el = document.getElementById('result-ai-assistant');
+      showLoading(el);
+      const form = e.target;
+      const body = { question: form.question.value };
+      try {
+        const r = await fetch('/api/ai-assistant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (!r.ok) { showError(el, d.error); return; }
+        if (d.allowed) {
+          var html = '<div class="notice success"><strong>Environment AI Response:</strong></div><div class="notice info" style="margin-top:0.5rem;">' + formatAiAnalysis(d.reply) + '</div>';
+          if (d.articles && d.articles.length > 0) {
+            html += '<div class="climi-articles" style="margin-top:1.25rem;"><h3 style="font-size:1.1rem; margin:0 0 0.5rem 0; color: var(--text);">Related articles from the web</h3><ul style="margin:0; padding-left:1.25rem;">';
+            d.articles.forEach(function(a) {
+              var snip = (a.snippet || '').trim();
+              html += '<li style="margin-bottom:0.6rem;"><a href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener" style="color: var(--primary); font-weight: 500;">' + escapeHtml(a.title) + '</a>' + (snip ? '<br><span style="font-size:0.9rem; color: var(--text-muted);">' + escapeHtml(snip) + '</span>' : '') + '</li>';
+            });
+            html += '</ul></div>';
+          }
+          el.innerHTML = html;
+        } else {
+          el.innerHTML = '<div class="notice error"><span class="notice-error-icon" aria-hidden="true"></span> ' + escapeHtml(d.reply) + '</div>';
+        }
+      } catch (err) { showError(el, err.message); }
+    });
+  </script>
+</body>
+</html>

@@ -1,153 +1,65 @@
 # 🌍 Climatrack - AI Climate Impact Calculator
 
-A powerful AI-powered climate impact calculator built with Streamlit. Track your carbon footprint, get personalized insights, and find real solutions from the community.
+A powerful AI-powered climate impact calculator. Track your carbon footprint, get personalized insights, find real solutions from the community, and ask an environment-focused AI assistant. **Built with Flask** (and optional Streamlit).
 
 ## ✨ Features
 
-- **🤖 AI-Powered Analysis**: Analyze your daily routine with advanced language models (FLAN-T5)
-- **📊 Region-Aware Calculations**: Precise carbon calculations based on your local electricity grid
-- **👥 Community Integration**: Find real solutions from Reddit discussions with AI filtering
-- **📈 Progress Tracking**: Visualize your carbon journey over time
-- **🌿 Environment AI Assistant**: Ask questions about climate change and sustainability
-- **⚙️ Customizable Settings**: Configure location, units, and notifications
+- **🏠 Calculator**: Describe your day in natural language; get AI analysis and region-aware carbon estimates (transport, electricity, food).
+- **📊 Analysis**: Region-aware "what-if" optimizer (ZIP, commute, meals, efficiency).
+- **📈 Insights**: Progress tracking and carbon journey over time.
+- **📰 News**: Climate news with multiple AI agent opinions and voting.
+- **👥 Community**: Describe your problem → AI-generated solution + Reddit posts (strict + related), with deep analysis and fast parallel fetch.
+- **⚠️ Risk**: Air quality, heat index, and temperature anomaly (Open-Meteo) with composite risk score.
+- **⚙️ Settings**: Location, units (Imperial/Metric), notifications.
+- **🤖 Ask Climi**: Climate & environment Q&A only; returns an answer plus related web articles.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3.8+ and pip
-- (Optional) Ollama for local LLM support
+- Python 3.8+
+- (Optional) [Ollama](https://ollama.ai) for local LLM (otherwise uses FLAN-T5)
 
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd "Ai Climate Impact Calculator"
-   ```
+```bash
+git clone https://github.com/SDRoan/ClimaTrack.git
+cd ClimaTrack
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-2. **Set up the environment**
-   ```bash
-   # Create virtual environment
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   
-   # Install dependencies
-   pip install -r requirements.txt
-   ```
+### Run the app (Flask – recommended)
 
-### Running the Application
+```bash
+python app_flask.py
+```
+
+Open **http://127.0.0.1:5050**
+
+### Run with Streamlit (optional)
 
 ```bash
 streamlit run app.py
 ```
 
-The application will be available at `http://localhost:8501`
+Open **http://localhost:8501**
 
-## 🏗️ Architecture
+## 🏗️ Structure
 
-### Streamlit Application
-- **AI Models**: FLAN-T5 for text analysis and generation
-- **Reddit Integration**: Search and analyze community discussions
-- **Carbon Calculations**: Region-aware emission factors
-- **Interactive UI**: Tabs for different features
-
-### Key Components
-- **Calculator Tab**: AI-powered daily routine analysis
-- **Analysis Tab**: Advanced region-aware "what-if" optimizer
-- **Insights Tab**: Progress tracking and achievements
-- **Community Tab**: Reddit search for climate solutions
-- **Settings Tab**: User preferences and configuration
-- **Environment AI**: Climate Q&A system
+- **`app_flask.py`** – Flask app and API routes (calculator, news, community, risk, settings, Ask Climi).
+- **`core.py`** – Shared logic: LLM (Ollama/FLAN-T5), carbon math, Reddit search, web search, risk/weather, news opinions.
+- **`templates/index.html`** – Single-page UI (tabs, forms, Earth animation, custom icons).
+- **`app.py`** – Legacy Streamlit UI (optional).
+- **`data/`** – Optional CSVs for grid factors and footprint log (gitignored).
 
 ## 🔧 Configuration
 
-### Environment Variables
+- **Ollama** (optional): Set `OLLAMA_HOST` and `OLLAMA_MODEL` in env or use defaults (`http://localhost:11434`, `llama3.2:3b`).
+- **Port**: `PORT=5050` for Flask (default 5050).
+- **Data**: Add `data/egrid_subregion_factors.csv` and `data/zip_to_egrid.csv` for finer region-aware calculations.
 
-Create a `.env` file in the project directory:
+## 📄 License
 
-```env
-OLLAMA_HOST=http://localhost:11434
-OLLAMA_MODEL=llama3.2:3b
-```
-
-### Optional Data Files
-
-For more accurate calculations, add these CSV files to the `data/` directory:
-
-- `egrid_subregion_factors.csv` - Grid emission factors by region
-- `zip_to_egrid.csv` - ZIP code to grid region mapping
-
-## 🎯 Usage
-
-### Calculator Tab
-1. Describe your daily routine in natural language
-2. Set your carbon footprint goal
-3. Get AI-powered analysis and suggestions
-
-### Analysis Tab
-1. Enter your location and usage details
-2. Try different optimization scenarios
-3. View detailed breakdowns and charts
-
-### Community Tab
-1. Describe a climate-related problem
-2. Find similar stories and solutions from Reddit
-3. Get AI-summarized advice
-
-### Environment AI
-1. Ask questions about climate change and sustainability
-2. Get informative, science-based answers
-
-## 🛠️ Development
-
-```bash
-# Install development dependencies
-pip install -r requirements.txt
-
-# Run with auto-reload
-streamlit run app.py --server.runOnSave true
-```
-
-## 📊 Features in Detail
-
-### AI-Powered Analysis
-- Uses FLAN-T5 or Ollama models for natural language processing
-- Analyzes daily routines and provides environmental impact assessments
-- Generates personalized recommendations
-
-### Region-Aware Calculations
-- Considers local electricity grid intensity
-- Supports ZIP code-based calculations (US)
-- Fallback to regional averages (US, EU, Global)
-
-### Community Integration
-- Searches Reddit for real-world solutions
-- AI-powered relevance filtering
-- Summarizes findings into actionable advice
-
-### Carbon Footprint Tracking
-- Tracks progress over time
-- Visualizes trends with charts
-- Provides achievement system
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-
-
-## �� Acknowledgments
-
-- Built with Streamlit
-- AI models powered by Hugging Face Transformers
-- Community data from Reddit
-- Icons and styling from Streamlit components
-
----
-
-**Made with ❤️ for the planet**
+MIT. **Made with ❤️ for the planet.**
